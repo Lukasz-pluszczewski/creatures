@@ -1,0 +1,38 @@
+$maincolor: #ffffff;
+
+// breakpoints
+$mobileRes: 768px;
+$tabletRes: 992px;
+$monitorRes: 1200px;
+
+$mobile: (max-width: $mobileRes - 1px);
+$tablet: (min-width: $mobileRes) and (max-width: $tabletRes - 1px);
+$smallMonitor: (min-width: $tabletRes) and (max-width: $monitorRes - 1px);
+$largeMonitor: (min-width: $monitorRes);
+
+@mixin mobile {
+  @media #{$mobile} {
+    @content;
+  }
+}
+
+@mixin tablet {
+  @media #{$tablet} {
+    @content;
+  }
+}
+
+@mixin smallMonitor {
+  @media #{$smallMonitor} {
+    @content;
+  }
+}
+
+@mixin largeMonitor {
+  @media #{$largeMonitor} {
+    @content;
+  }
+}
+
+// bootstrap overrides
+//$primary: #3937ff;

@@ -1,0 +1,15 @@
+.Login {
+  display: flex;
+  justify-content: center;
+  .Login__card {
+    max-width: 300px;
+
+    .Login__input {
+      width: 100%;
+      margin-bottom: 1em;
+    }
+    .Login__button {
+      width: 100%;
+    }
+  }
+}
