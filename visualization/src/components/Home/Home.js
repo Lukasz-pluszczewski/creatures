@@ -105,6 +105,8 @@ const Home = () => {
             creatures={data?.data?.creatures}
             creatureSelectedIndex={creatureIndex}
             handleCreatureSelectIndex={handleCreatureIndexChange}
+            lastGenerationCreatures={data?.data?.lastGenerationCreatures}
+            lastGenerationSteps={data?.data?.lastGenerationSteps}
           />
         </Col>
         <Col>

@@ -1,11 +1,9 @@
-import { parseGene } from './geneUtils';
-
 import simpleExpress from 'simple-express-framework';
 import { Config, config } from './config';
 import { generateNeurons } from './neuronsUtils';
 import { createSimulator } from './simulator';
 import { Creature } from './types';
-import { calculateGenomeDiffVariation, genomeToColor } from './colorUtils';
+import { genomeToColor } from './colorUtils';
 import { createArray } from './arrayUtils';
 import { clamp, mapNumberToDifferentRange } from './numberUtils';
 
@@ -64,6 +62,21 @@ simpleExpress({
       get: () => {
         // const creaturesGenomeVariation = calculateGenomeDiffVariation(simulator.creatures);
         const creaturesGenomeVariation = { min: 0, max: 1 };
+
+        const getCreatureView = (creature: Creature) => ({
+          ...creature,
+          color: genomeToColor(creature.genome, creaturesGenomeVariation),
+          genome: creature.parsedGenome,
+          parsedGenome: undefined,
+          ancestors: creature.ancestors
+            ? creature.ancestors.map(ancestor => ({
+              ...ancestor,
+              genome: ancestor.parsedGenome,
+              parsedGenome: undefined,
+            }))
+            : undefined,
+        });
+
         return ({
           status: 200,
           body: {
@@ -72,19 +85,9 @@ simpleExpress({
             generation: simulator.generation,
             neurons: neurons,
             history: simulator.history,
-            creatures: simulator.creatures.map(creature => ({
-              ...creature,
-              color: genomeToColor(creature.genome, creaturesGenomeVariation),
-              genome: creature.parsedGenome,
-              parsedGenome: undefined,
-              ancestors: creature.ancestors
-                ? creature.ancestors.map(ancestor => ({
-                  ...ancestor,
-                  genome: ancestor.parsedGenome,
-                  parsedGenome: undefined,
-                }))
-                : undefined,
-            }))
+            lastGenerationCreatures: simulator.lastGenerationCreatures.map(getCreatureView),
+            lastGenerationSteps: simulator.lastGenerationSteps,
+            creatures: simulator.creatures.map(getCreatureView)
           },
         });
       },

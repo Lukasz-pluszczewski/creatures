@@ -11,6 +11,7 @@ type Stats = {
   step: number,
   generation: number,
   reproduced: number,
+  populationInGeneration: number,
 };
 type Simulator = {
   config: Config,
@@ -21,6 +22,8 @@ type Simulator = {
   step: number,
   generation: number,
   history: Stats[],
+  lastGenerationCreatures: Creature[],
+  lastGenerationSteps: { id: Creature['id'], x: Creature['x'], y: Creature['y'] }[][],
 };
 export const createSimulator = (
   config: Config,
@@ -38,6 +41,8 @@ export const createSimulator = (
     step: 0,
     generation: 0,
     history: [],
+    lastGenerationCreatures: [],
+    lastGenerationSteps: [],
   };
 
   simulator.creatures = createArray(config.population).map(() => createCreature(
@@ -46,6 +51,7 @@ export const createSimulator = (
   ));
 
   simulator.simulateStep = () => {
+    const creaturesInStep = [];
     simulator.creatures.forEach(creature => {
       const inputValues = sensorsData(creature, config, simulator.neurons.inputNeurons, simulator.creatures);
       const outputValues = calculateGraph(inputValues, creature.parsedGenome, simulator.neurons, creature.validNeurons);
@@ -54,17 +60,25 @@ export const createSimulator = (
         const outputNeuron = simulator.neurons.neuronMap[neuronId];
         outputNeuron.act(outputValue, creature, config);
       });
+
+      creaturesInStep.push({ id: creature.id, x: creature.x, y: creature.y });
     });
+    simulator.lastGenerationSteps.push(creaturesInStep);
     simulator.step++;
   };
 
   simulator.simulateGeneration = () => {
+    simulator.lastGenerationCreatures = simulator.creatures;
+    simulator.lastGenerationSteps = [];
+
     // simulating
     generationLength.forEach((__, step) => {
       if (simulator.step <= step) {
         simulator.simulateStep();
       }
     });
+
+    const populationInGeneration = simulator.creatures.length;
 
     // calculating result and killing
     const creaturesThatReproduced = [];
@@ -78,6 +92,8 @@ export const createSimulator = (
         creaturesThatReproduced.push(creature);
       }
     });
+
+    // reproducing
     creaturesThatReproduced.forEach(creature => {
       const numberOfOffspring = clamp(
         Math.floor(config.population / creaturesThatReproduced.length),
@@ -94,18 +110,29 @@ export const createSimulator = (
     });
 
     // creating random creatures to keep the population size in each simulation step constant
-    times(config.population - newPopulation.length, () => {
-      newPopulation.push(createCreature(
-        neurons,
-        config,
-      ));
-    });
+    if (config.keepPopulationConstant) {
+      times(config.population - newPopulation.length, () => {
+        newPopulation.push(createCreature(
+          neurons,
+          config,
+        ));
+      });
+    }
+    if (!newPopulation.length && config.repopulateWhenPopulationDiesOut) {
+      times(config.population, () => {
+        newPopulation.push(createCreature(
+          neurons,
+          config,
+        ));
+      });
+    }
     simulator.creatures = newPopulation;
 
 
     const stats: Stats = {
       step: simulator.step,
       generation: simulator.generation,
+      populationInGeneration,
       reproduced: creaturesThatReproduced.length,
     };
     simulator.history.push(stats);

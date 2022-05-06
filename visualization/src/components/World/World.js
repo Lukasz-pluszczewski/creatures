@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ResponsiveContainer } from 'recharts';
 import { scaleOrdinal } from 'd3-scale';
 import { schemeCategory10 } from 'd3-scale-chromatic';
+import { Button } from 'react-bootstrap';
+import { useAnimation } from './useAnimation.hook';
 
 const colors = scaleOrdinal(schemeCategory10).range();
 
@@ -24,16 +26,46 @@ const getClickedCreatureIndex = (chartX, chartY, data) => {
   return closest[0];
 };
 
-export const World = ({ config, creatures, creatureSelectedIndex, handleCreatureSelectIndex }) => {
+const getCreatureData = (creatures, lastGenerationSteps, animatingStep) => {
+  if (animatingStep === null) {
+    return creatures.map((creature, index) => ({
+      x: creature.x,
+      y: creature.y,
+      creatureIndex: index,
+      color: creature.color,
+    }));
+  }
+  return (lastGenerationSteps[animatingStep] || []).map(({ id, x, y }, index) => ({
+    x: x,
+    y: y,
+    creatureIndex: index,
+    color: '#000000',
+  }));
+};
+
+export const World = ({
+  config,
+  creatures,
+  creatureSelectedIndex,
+  handleCreatureSelectIndex,
+  lastGenerationSteps,
+}) => {
+  const [animatingStep, setAnimatingStep] = useState(null);
+  useAnimation(e => {
+    if (animatingStep !== null) {
+      if (animatingStep >= lastGenerationSteps.length) {
+        setAnimatingStep(null);
+      } else {
+        console.log('Animating step', animatingStep);
+        setAnimatingStep(animatingStep + 1);
+      }
+    }
+  }, 30);
+
   if (!config || !creatures) return null;
 
   const { worldSizeY, worldSizeX } = config;
-  const data = creatures.map((creature, index) => ({
-    x: creature.x,
-    y: creature.y,
-    creatureIndex: index,
-    color: creature.color,
-  }));
+  const data = getCreatureData(creatures, lastGenerationSteps, animatingStep);
   // console.log('data for chart', config, data);
 
   const handleMouseDown = nextState => {
@@ -62,7 +94,7 @@ export const World = ({ config, creatures, creatureSelectedIndex, handleCreature
           <XAxis type="number" dataKey="x" name="x" domain={[0, worldSizeX]} />
           <YAxis type="number" dataKey="y" name="y" domain={[0, worldSizeY]} />
           <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-          <Scatter name="A school" data={data} fill="#8884d8" >
+          <Scatter name="A school" data={data} fill="#8884d8" isAnimationActive={false} >
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               // <Cell key={`cell-${index}`} fill={entry.color} />
@@ -70,6 +102,9 @@ export const World = ({ config, creatures, creatureSelectedIndex, handleCreature
           </Scatter>
         </ScatterChart>
       </ResponsiveContainer>
+      <Button disabled={!lastGenerationSteps?.length} onClick={() => setAnimatingStep(1)}>
+        Play last generation
+      </Button>
     </div>
   )
 };

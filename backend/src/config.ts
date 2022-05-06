@@ -12,6 +12,9 @@ export const config = {
   minNumberOfOffspring: 1,
   maxNumberOfOffspring: 5,
 
+  keepPopulationConstant: false,
+  repopulateWhenPopulationDiesOut: true,
+
   maxInputNeuronId: MIN_INPUT_NEURON_ID + 4,
   maxInternalNeuronId: MIN_INTERNAL_NEURON_ID + internalNeurons - 1,
   maxOutputNeuronId: MIN_OUTPUT_NEURON_ID + 1,
