@@ -11,7 +11,6 @@ import {
 import { createArray } from './arrayUtils';
 import { Config } from './config';
 import swich from 'swich';
-import { moveCreature } from './creatureUtils';
 
 export const generateNeurons = (config: Config) => {
   const inputNeurons: Neuron[] = [
@@ -61,16 +60,16 @@ export const generateNeurons = (config: Config) => {
   const outputNeurons: Neuron[] = [
     {
       label: 'moveHorizontal',
-      act: (output, creature, config) => swich([
-        [() => output > 0.5, () => moveCreature(creature, 1, 0, config)],
-        [() => output < -0.5, () => moveCreature(creature, -1, 0, config)],
+      act: (output, creature, config, simulator) => swich([
+        [() => output > 0.5, () => simulator.moveCreature(creature, 1, 0)],
+        [() => output < -0.5, () => simulator.moveCreature(creature, -1, 0)],
       ])(),
     },
     {
       label: 'moveVertical',
-      act: (output, creature, config) => swich([
-        [() => output > 0.5, () => moveCreature(creature, 0, 1, config)],
-        [() => output < -0.5, () => moveCreature(creature, 0, -1, config)],
+      act: (output, creature, config, simulator) => swich([
+        [() => output > 0.5, () => simulator.moveCreature(creature, 0, 1)],
+        [() => output < -0.5, () => simulator.moveCreature(creature, 0, -1)],
       ])(),
     },
   ].map((neuron, index) => {

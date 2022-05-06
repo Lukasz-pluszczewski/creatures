@@ -131,7 +131,7 @@ export const calculateGraph = (
     }, 0);
     inputAndInternalNeuronsValuesMap[neuron.id] = neuron.activation(inputSum);
     // console.log('Internal calculated', neuron.label, inputSum, inputAndInternalNeuronsValuesMap[neuron.id]);
-  })
+  });
 
   // calculating output neurons
   neurons.outputNeurons.forEach(neuron => {

@@ -29,11 +29,12 @@ const resultCondition = (creature: Creature, config: Config, creatures: Creature
     Math.pow(creature.x - config.worldSizeX / 2, 2) +
     Math.pow(creature.y - config.worldSizeY / 2, 2),
   );
+
   // const reproductionProbability = distanceFromCenter < 40 ? 1 : 0;
   const reproductionProbability = 1 - mapNumberToDifferentRange(
-    clamp(distanceFromCenter, 0, 40),
+    clamp(distanceFromCenter, 0, 20),
     0,
-    40,
+    20,
     0,
     1
   );

@@ -38,7 +38,7 @@ export type Neuron = {
   output?: number,
   input?: number,
   getValue?: (creature: Creature, config: Config, creatures: Creature[]) => number,
-  act?: (output: number, creature: Creature, config: Config) => void,
+  act?: (output: number, creature: Creature, config: Config, simulator: Simulator) => void,
   type: number;
 };
 
@@ -52,4 +52,28 @@ export type SimulationNeurons = {
   outputNeurons: Neuron[],
   outputNeuronsIds: FixedLengthNumber<8>[],
   neuronMap: { [neuronId: FixedLengthNumber<8>]: Neuron },
+};
+
+export type World = { id: Creature['id'] }[][];
+
+export type SimulationStats = {
+  step: number,
+  generation: number,
+  reproduced: number,
+  populationInGeneration: number,
+};
+
+export type Simulator = {
+  config: Config,
+  neurons: SimulationNeurons,
+  creatures: Creature[],
+  simulateStep: () => void,
+  simulateGeneration: () => void,
+  moveCreature: (creature: Creature, deltaX: number, deltaY: number) => void,
+  step: number,
+  generation: number,
+  history: SimulationStats[],
+  lastGenerationCreatures: Creature[],
+  lastGenerationSteps: { id: Creature['id'], x: Creature['x'], y: Creature['y'] }[][],
+  world: World,
 };

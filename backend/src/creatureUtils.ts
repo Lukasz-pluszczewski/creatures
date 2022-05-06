@@ -11,22 +11,6 @@ import { Creature, Genome, SimulationNeurons } from './types';
 
 // import { testGenome } from './testEntities';
 
-export const moveCreature = (creature: Creature, x: number, y: number, config: Config) => {
-  if (x > 0 && creature.x < config.worldSizeX) {
-    creature.x += x;
-  }
-  if (x < 0 && creature.x > 0) {
-    creature.x += x;
-  }
-  if (y > 0 && creature.y < config.worldSizeY) {
-    creature.y += y;
-  }
-  if (y < 0 && creature.y > 0) {
-    creature.y += y;
-  }
-};
-
-
 export const createCreature = (
   neurons: SimulationNeurons,
   config: Config,

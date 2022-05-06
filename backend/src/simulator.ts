@@ -4,31 +4,16 @@ import { createArray, times } from './arrayUtils';
 import { calculateGraph } from './graphUtils';
 import { createCreature } from './creatureUtils';
 
-import { Creature, InputValues, Neuron, SimulationNeurons } from './types';
+import { Creature, InputValues, Neuron, SimulationNeurons, SimulationStats, Simulator, World } from './types';
 import { clamp } from './numberUtils';
+import { addCreature, createEmptyWorld, getCreature, removeCreature } from './worldUtils';
 
-type Stats = {
-  step: number,
-  generation: number,
-  reproduced: number,
-  populationInGeneration: number,
-};
-type Simulator = {
-  config: Config,
-  neurons: SimulationNeurons,
-  creatures: Creature[],
-  simulateStep: () => void,
-  simulateGeneration: () => void,
-  step: number,
-  generation: number,
-  history: Stats[],
-  lastGenerationCreatures: Creature[],
-  lastGenerationSteps: { id: Creature['id'], x: Creature['x'], y: Creature['y'] }[][],
-};
+
 export const createSimulator = (
   config: Config,
   neurons: SimulationNeurons,
-  resultCondition: (creature: Creature, config: Config, creatures: Creature[]) => ({ survivalProbability: number, reproductionProbability: number }),
+  resultCondition: (creature: Creature, config: Config, creatures: Creature[]) =>
+    ({ survivalProbability: number, reproductionProbability: number }),
 ) => {
   const {
   } = config;
@@ -43,12 +28,44 @@ export const createSimulator = (
     history: [],
     lastGenerationCreatures: [],
     lastGenerationSteps: [],
+    world: createEmptyWorld(config),
   };
 
   simulator.creatures = createArray(config.population).map(() => createCreature(
     neurons,
     config,
   ));
+
+  simulator.moveCreature = (creature: Creature, deltaX: number, deltaY: number) => {
+    let newX = creature.x;
+    let newY = creature.y;
+    if (deltaX > 0 && creature.x < config.worldSizeX) {
+      newX = creature.x + deltaX;
+    }
+    if (deltaX < 0 && creature.x > 0) {
+      newX = creature.x + deltaX;
+    }
+    if (deltaY > 0 && creature.y < config.worldSizeY) {
+      newY = creature.y + deltaY;
+    }
+    if (deltaY < 0 && creature.y > 0) {
+      newY = creature.y + deltaY;
+    }
+    // if (getCreature(simulator.world, newX, newY)) {
+    //   if (!getCreature(simulator.world, creature.x, newY)) {
+    //     newX = creature.x;
+    //   } else if (!getCreature(simulator.world, newX, creature.y)) {
+    //     newY = creature.y;
+    //   } else {
+    //     newX = creature.x;
+    //     newY = creature.y;
+    //   }
+    // }
+    // removeCreature(simulator.world, creature);
+    creature.x = newX;
+    creature.y = newY;
+    // addCreature(simulator.world, creature);
+  };
 
   simulator.simulateStep = () => {
     const creaturesInStep = [];
@@ -58,7 +75,7 @@ export const createSimulator = (
 
       Object.entries(outputValues).forEach(([neuronId, outputValue]) => {
         const outputNeuron = simulator.neurons.neuronMap[neuronId];
-        outputNeuron.act(outputValue, creature, config);
+        outputNeuron.act(outputValue, creature, config, simulator);
       });
 
       creaturesInStep.push({ id: creature.id, x: creature.x, y: creature.y });
@@ -101,11 +118,13 @@ export const createSimulator = (
         config.maxNumberOfOffspring
       );
       times(numberOfOffspring, () => {
-        newPopulation.push(createCreature(
-          neurons,
-          config,
-          creature,
-        ));
+        if (newPopulation.length < config.populationLimit) {
+          newPopulation.push(createCreature(
+            neurons,
+            config,
+            creature,
+          ));
+        }
       });
     });
 
@@ -129,7 +148,7 @@ export const createSimulator = (
     simulator.creatures = newPopulation;
 
 
-    const stats: Stats = {
+    const stats: SimulationStats = {
       step: simulator.step,
       generation: simulator.generation,
       populationInGeneration,

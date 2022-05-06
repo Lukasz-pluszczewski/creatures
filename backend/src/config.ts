@@ -4,16 +4,17 @@ const internalNeurons = 5;
 export const config = {
   population: 100,
   generationLength: 200,
-  genomeLength: 10,
+  genomeLength: 20,
   internalNeurons,
   worldSizeX: 128,
   worldSizeY: 128,
 
   minNumberOfOffspring: 1,
-  maxNumberOfOffspring: 5,
+  maxNumberOfOffspring: 6,
 
   keepPopulationConstant: false,
   repopulateWhenPopulationDiesOut: true,
+  populationLimit: 200,
 
   maxInputNeuronId: MIN_INPUT_NEURON_ID + 4,
   maxInternalNeuronId: MIN_INTERNAL_NEURON_ID + internalNeurons - 1,
