@@ -15,6 +15,7 @@ export const createCreature = (
   neurons: SimulationNeurons,
   config: Config,
   parent?: Creature,
+  energy?: number,
 ): Creature => {
   const rawGenome = (() => {
     if (parent) {
@@ -39,6 +40,9 @@ export const createCreature = (
     x: randomInteger(0, config.worldSizeX),
     y: randomInteger(0, config.worldSizeY),
     neuronsState: {},
+    creatureState: {
+      energy: energy || 0.5,
+    },
   };
   if (parent) {
     const { ancestors, ...rest } = parent;

@@ -1,24 +1,30 @@
 import { MIN_INPUT_NEURON_ID, MIN_INTERNAL_NEURON_ID, MIN_OUTPUT_NEURON_ID } from './constants';
 
-const internalNeurons = 5;
+const internalNeurons = 10;
 export const config = {
-  population: 100,
+  population: 1000,
   generationLength: 200,
-  genomeLength: 20,
+  genomeLength: 30,
   internalNeurons,
   worldSizeX: 128,
   worldSizeY: 128,
 
-  minNumberOfOffspring: 1,
-  maxNumberOfOffspring: 6,
+  minNumberOfOffspring: 1, // not used with energybased reproduction, see simulator.ts:134
+  maxNumberOfOffspring: 20,
 
   keepPopulationConstant: false,
   repopulateWhenPopulationDiesOut: true,
   populationLimit: 200,
 
-  maxInputNeuronId: MIN_INPUT_NEURON_ID + 4,
+  foodDensity: 0.02,
+  foodNutrition: 2,
+  moveEnergyCost: 0.009,
+  stepEnergyCost: 0.005,
+  foodLimit: 250, // food will not be regrown if there is at least this amount of it
+
+  maxInputNeuronId: MIN_INPUT_NEURON_ID + 8,
   maxInternalNeuronId: MIN_INTERNAL_NEURON_ID + internalNeurons - 1,
-  maxOutputNeuronId: MIN_OUTPUT_NEURON_ID + 1,
+  maxOutputNeuronId: MIN_OUTPUT_NEURON_ID + 2,
 
   mutationProbabilityMatrix: {
     sourceType: 0,

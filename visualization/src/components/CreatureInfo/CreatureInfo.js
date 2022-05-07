@@ -28,14 +28,14 @@ export const CreatureInfo = ({ creature, setCreatureAncestor }) => {
     return null;
   }
 
-  const { genome, ancestors, id, x, y, neuronsState } = creature;
+  const { genome, ancestors, id, x, y, creatureState, neuronsState } = creature;
 
   return (
     <Container>
       <h4>Creature info:</h4>
       <Row>
         <Col>
-          <b>{`${id} {${x}, ${y}}`}</b>
+          <b>{`${id} {${x}, ${y}} (${creatureState?.energy})`}</b>
           <div style={{ marginTop: '1em' }}>Genes:</div>
           {genome.map((gene, index) => <Gene key={index} gene={gene}/>)}
         </Col>

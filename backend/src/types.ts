@@ -20,6 +20,9 @@ export type ParsedGene = [SourceType, SourceId, TargetType, TargetId, Weight];
 
 export type Gene = Brand<FixedLengthNumber<34>, 'Gene'>;
 export type Genome = Gene[];
+export type CreatureState = {
+  energy: number, // 0 - 1
+};
 export type Creature = {
   id: string,
   genome: Genome,
@@ -28,6 +31,7 @@ export type Creature = {
   x: number,
   y: number,
   neuronsState: { [neuronId: number]: number },
+  creatureState: CreatureState,
   ancestors?: Creature[],
 };
 
@@ -37,7 +41,7 @@ export type Neuron = {
   activation: (input: number) => number,
   output?: number,
   input?: number,
-  getValue?: (creature: Creature, config: Config, creatures: Creature[]) => number,
+  getValue?: (creature: Creature, config: Config, simulator: Simulator) => number,
   act?: (output: number, creature: Creature, config: Config, simulator: Simulator) => void,
   type: number;
 };
@@ -52,15 +56,28 @@ export type SimulationNeurons = {
   outputNeurons: Neuron[],
   outputNeuronsIds: FixedLengthNumber<8>[],
   neuronMap: { [neuronId: FixedLengthNumber<8>]: Neuron },
+  reproduceNeuronId: FixedLengthNumber<8>,
 };
 
-export type World = { id: Creature['id'] }[][];
+export type Food = {
+  x: number,
+  y: number,
+  value: number,
+};
+
+export type World = { creatureId: Creature['id'] | null, food: number }[][];
 
 export type SimulationStats = {
   step: number,
   generation: number,
   reproduced: number,
   populationInGeneration: number,
+  averageEnergy: number,
+  averageOffspring: number,
+};
+
+export type SimulatorCache = {
+  [key: string]: any,
 };
 
 export type Simulator = {
@@ -74,6 +91,11 @@ export type Simulator = {
   generation: number,
   history: SimulationStats[],
   lastGenerationCreatures: Creature[],
-  lastGenerationSteps: { id: Creature['id'], x: Creature['x'], y: Creature['y'] }[][],
+  lastGenerationSteps: {
+    creatures: { id: Creature['id'], x: Creature['x'], y: Creature['y'] }[],
+    food: { value: number, x: number, y: number }[],
+  }[],
   world: World,
+  stepCache: SimulatorCache,
+  getStepCached: (key: string, getter: () => any) => any,
 };

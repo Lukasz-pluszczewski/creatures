@@ -1,16 +1,18 @@
 import { Tanh } from 'activation-functions';
-import { Creature, Neuron } from './types';
-import { createNumber, randomInteger } from './numberUtils';
+import { Creature, Neuron, Simulator } from './types';
+import { createNumber } from './numberUtils';
 import {
   MIN_INPUT_NEURON_ID,
   MIN_INTERNAL_NEURON_ID,
   MIN_OUTPUT_NEURON_ID,
   NEURON_TYPE_INPUT,
-  NEURON_TYPE_INTERNAL, NEURON_TYPE_OUTPUT
+  NEURON_TYPE_INTERNAL,
+  NEURON_TYPE_OUTPUT,
 } from './constants';
 import { createArray } from './arrayUtils';
 import { Config } from './config';
 import swich from 'swich';
+import { findClosestFood } from './worldUtils';
 
 export const generateNeurons = (config: Config) => {
   const inputNeurons: Neuron[] = [
@@ -34,14 +36,48 @@ export const generateNeurons = (config: Config) => {
       label: 'westWallDistance',
       getValue: (creature: Creature) => creature.x / config.worldSizeX,
     },
+    {
+      label: 'closestFoodHorizontalDistance',
+      getValue: (creature: Creature, config: Config, simulator: Simulator) => {
+        const closestFood = simulator.getStepCached(
+          `closestFood[${creature.x},${creature.y}]`,
+          () => findClosestFood(simulator.world, creature.x, creature.y)
+        );
+        if (!closestFood.food) {
+          return 1; // we return maximum value if there is no food
+        }
+        return (closestFood.food.x - creature.x) / config.worldSizeX;
+      },
+    },
+    {
+      label: 'closestFoodVerticalDistance',
+      getValue: (creature: Creature, config: Config, simulator: Simulator) => {
+        const closestFood = simulator.getStepCached(
+          `closestFood[${creature.x},${creature.y}]`,
+          () => findClosestFood(simulator.world, creature.x, creature.y)
+        );
+        if (!closestFood.food) {
+          return 1; // we return maximum value if there is no food
+        }
+        return (closestFood.food.y - creature.y) / config.worldSizeY;
+      },
+    },
+    {
+      label: 'energy',
+      getValue: (creature: Creature) => creature.creatureState.energy,
+    },
+    {
+      label: 'age',
+      getValue: (creature: Creature, config: Config, simulator: Simulator) => simulator.step / config.generationLength,
+    },
   ].map((neuron, index) => {
     const id = createNumber(MIN_INPUT_NEURON_ID + index, 8);
     return {
-      ...neuron,
       id,
-      label: `${neuron.label}[${id}]`,
       activation: x => x,
       type: NEURON_TYPE_INPUT,
+      ...neuron,
+      label: `${neuron.label}[${id}]`,
     };
   });
   const inputNeuronsIds = inputNeurons.map(({ id }) => id);
@@ -59,6 +95,11 @@ export const generateNeurons = (config: Config) => {
 
   const outputNeurons: Neuron[] = [
     {
+      label: 'reproduce',
+      act: () => {},
+      activation: x => x,
+    },
+    {
       label: 'moveHorizontal',
       act: (output, creature, config, simulator) => swich([
         [() => output > 0.5, () => simulator.moveCreature(creature, 1, 0)],
@@ -75,11 +116,11 @@ export const generateNeurons = (config: Config) => {
   ].map((neuron, index) => {
     const id = createNumber(MIN_OUTPUT_NEURON_ID + index, 8);
     return {
-      ...neuron,
       id,
-      label: `${neuron.label}[${id}]`,
       activation: Tanh,
       type: NEURON_TYPE_OUTPUT,
+      ...neuron,
+      label: `${neuron.label}[${id}]`,
     };
   });
   const outputNeuronsIds = outputNeurons.map(({ id }) => id);
@@ -98,5 +139,6 @@ export const generateNeurons = (config: Config) => {
     outputNeurons,
     outputNeuronsIds,
     neuronMap,
+    reproduceNeuronId: outputNeurons.find(({ label }) => label.startsWith('reproduce')).id,
   };
 };

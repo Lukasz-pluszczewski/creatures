@@ -35,7 +35,7 @@ const getCreatureData = (creatures, lastGenerationSteps, animatingStep) => {
       color: creature.color,
     }));
   }
-  return (lastGenerationSteps[animatingStep] || []).map(({ id, x, y }, index) => ({
+  return (lastGenerationSteps[animatingStep]?.creatures || []).map(({ id, x, y }, index) => ({
     x: x,
     y: y,
     creatureIndex: index,
@@ -43,9 +43,27 @@ const getCreatureData = (creatures, lastGenerationSteps, animatingStep) => {
   }));
 };
 
+const getFoodData = (food, lastGenerationSteps, animatingStep) => {
+  if (animatingStep === null) {
+    return food.map(({ x, y }, index) => ({
+      x: x,
+      y: y,
+      foodIndex: index,
+      color: '#00ff00',
+    }));
+  }
+  return (lastGenerationSteps[animatingStep]?.food || []).map(({ id, x, y }, index) => ({
+    x: x,
+    y: y,
+    foodIndex: index,
+    color: '#00ff00',
+  }));
+};
+
 export const World = ({
   config,
   creatures,
+  food,
   creatureSelectedIndex,
   handleCreatureSelectIndex,
   lastGenerationSteps,
@@ -66,6 +84,7 @@ export const World = ({
 
   const { worldSizeY, worldSizeX } = config;
   const data = getCreatureData(creatures, lastGenerationSteps, animatingStep);
+  const foodData = getFoodData(food, lastGenerationSteps, animatingStep);
   // console.log('data for chart', config, data);
 
   const handleMouseDown = nextState => {
@@ -94,10 +113,15 @@ export const World = ({
           <XAxis type="number" dataKey="x" name="x" domain={[0, worldSizeX]} />
           <YAxis type="number" dataKey="y" name="y" domain={[0, worldSizeY]} />
           <Tooltip cursor={{ strokeDasharray: '3 3' }} />
-          <Scatter name="A school" data={data} fill="#8884d8" isAnimationActive={false} >
+          <Scatter name="Creatures" data={data} fill="#8884d8" isAnimationActive={false} >
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               // <Cell key={`cell-${index}`} fill={entry.color} />
+            ))}
+          </Scatter>
+          <Scatter name="Food" data={foodData} fill="#8884d8" shape="cross" isAnimationActive={false} >
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill="#0000FF" />
             ))}
           </Scatter>
         </ScatterChart>

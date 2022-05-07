@@ -103,6 +103,7 @@ const Home = () => {
           <World
             config={data?.data?.config}
             creatures={data?.data?.creatures}
+            food={data?.data?.food}
             creatureSelectedIndex={creatureIndex}
             handleCreatureSelectIndex={handleCreatureIndexChange}
             lastGenerationCreatures={data?.data?.lastGenerationCreatures}

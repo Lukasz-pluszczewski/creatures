@@ -6,6 +6,7 @@ import { Creature } from './types';
 import { genomeToColor } from './colorUtils';
 import { createArray } from './arrayUtils';
 import { clamp, mapNumberToDifferentRange } from './numberUtils';
+import { getAllFood } from './worldUtils';
 
 const neurons = generateNeurons(config);
 
@@ -25,20 +26,28 @@ const resultCondition = (creature: Creature, config: Config, creatures: Creature
   // const leftWallDistance = creature.x / config.worldSizeX;
   // const topWallDistance = (config.worldSizeY - creature.y) / config.worldSizeY;
   // const bottomWallDistance = creature.y / config.worldSizeY;
-  const distanceFromCenter = Math.sqrt(
-    Math.pow(creature.x - config.worldSizeX / 2, 2) +
-    Math.pow(creature.y - config.worldSizeY / 2, 2),
-  );
+  // const distanceFromCenter = Math.sqrt(
+  //   Math.pow(creature.x - config.worldSizeX / 2, 2) +
+  //   Math.pow(creature.y - config.worldSizeY / 2, 2),
+  // );
 
   // const reproductionProbability = distanceFromCenter < 40 ? 1 : 0;
-  const reproductionProbability = 1 - mapNumberToDifferentRange(
-    clamp(distanceFromCenter, 0, 20),
+  // const reproductionProbability = 1 - mapNumberToDifferentRange(
+  //   clamp(distanceFromCenter, 0, 20),
+  //   0,
+  //   20,
+  //   0,
+  //   1
+  // );
+  const reproductionProbability = mapNumberToDifferentRange(
+    clamp(creature.creatureState.energy, 0, 1),
     0,
-    20,
-    0,
+    1,
+    0.1,
     1
   );
-  // console.log('rep prob:', distanceFromCenter, reproductionProbability);
+
+  // console.log('rep prob:', creature.creatureState.energy, reproductionProbability);
   return {
     survivalProbability: 0,
     reproductionProbability,
@@ -84,6 +93,7 @@ simpleExpress({
             config,
             step: simulator.generation,
             generation: simulator.generation,
+            food: getAllFood(simulator.world),
             neurons: neurons,
             history: simulator.history,
             lastGenerationCreatures: simulator.lastGenerationCreatures.map(getCreatureView),
