@@ -1,17 +1,6 @@
 import { FixedLengthNumber } from './typesUtils';
-import { BinString, Gene, HexString, SourceId, SourceType, TargetId, TargetType, Weight } from './types';
+import { MAX_16_BIT_INTEGER } from './constants';
 
-export const toBinString = <TBitLength extends number>(number: FixedLengthNumber<TBitLength>, padStart: number = 0): BinString =>
-  number.toString(2).padStart(padStart, '0') as BinString;
-
-export const toHexString = <TBitLength extends number>(number: FixedLengthNumber<TBitLength>, padStart = 0): HexString =>
-  number.toString(16).padStart(padStart, '0') as HexString;
-
-export const binString2Number = <TBitLength extends number>(bin: BinString) => parseInt(bin, 2) as FixedLengthNumber<TBitLength>;
-export const hexString2Number = <TBitLength extends number>(hex: HexString) => parseInt(hex, 16) as FixedLengthNumber<TBitLength>;
-
-export const sliceBinString2Number = <TLength extends number>(binString: BinString, start: number, length: TLength) =>
-  binString2Number<TLength>(binString.slice(start, start + length) as BinString);
 
 export const randomFixedLengthNumber = <TBitLength extends number>(bitLength: TBitLength): FixedLengthNumber<typeof bitLength> =>
   Math.floor(Math.random() * Math.pow(2, bitLength)) as FixedLengthNumber<typeof bitLength>;
@@ -30,3 +19,11 @@ export const mapNumberToDifferentRange = (value, inMin, inMax, outMin, outMax) =
 };
 
 export const clamp = (num, min, max) => Math.min(Math.max(num, min), max);
+
+export const nonUniformRandomInteger = (min, max, exponent = 1) => {
+  return Math.floor(
+    (1 - Math.pow(1 - Math.random(), exponent)) * (max - min) + min
+  );
+};
+
+export const randomSign = () => Math.random() < 0.5 ? -1 : 1;

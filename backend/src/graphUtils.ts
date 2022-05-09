@@ -1,32 +1,22 @@
-import { parseGene } from './geneUtils';
+import { push, times } from './arrayUtils';
 import {
-  Creature,
-  Gene,
-  InputValues,
-  Neuron,
-  ParsedGene,
-  SimulationNeurons,
-  SourceId,
-  SourceType,
-  TargetId,
-  TargetType,
-  Weight
-} from './types';
-import { push } from './arrayUtils';
-import { SOURCE_INPUT, SOURCE_INTERNAL, TARGET_INTERNAL } from './constants';
-import { config } from './config';
+  NEURON_TYPE_INPUT,
+  NEURON_TYPE_INTERNAL,
+} from './constants';
+import { Config, config } from './config';
+import { ConnectionMap, Genomes, InputValues, Neuron, NeuronsData, Simulator } from './types';
 
-type ConnectionMap = {
-  from: Record<number, { weight: Weight, index: number, sourceType: SourceType, targetId: TargetId, targetType: TargetType }[]>,
-  to: Record<number, { weight: Weight, index: number, targetType: TargetType, sourceType: SourceType, sourceId: SourceId }[]>,
-}
+export const getWeight = (weight: number, weightMultiplier: number) => weight * weightMultiplier;
 
-export const getWeight = (weight: Weight, weightMultiplier: number) => (weight - 32768) * weightMultiplier;
-
-export const traverseNeuron = (neuronId: Neuron['id'], connectionMap: ConnectionMap, visitedNeurons: Neuron['id'][] = []) =>
+export const traverseNeuron = (
+  neuronId: Neuron['id'],
+  connectionMap: ConnectionMap,
+  neurons: NeuronsData,
+  visitedNeurons: Neuron['id'][] = []
+) =>
   (connectionMap.to[neuronId] || []).reduce((
     validNeurons,
-    { sourceId, sourceType, targetType }
+    { sourceId }
   ) => {
     if (visitedNeurons[visitedNeurons.length - 1] === sourceId) {
       return validNeurons;
@@ -34,15 +24,24 @@ export const traverseNeuron = (neuronId: Neuron['id'], connectionMap: Connection
     if (visitedNeurons.includes(sourceId)) {
       throw new Error(`Cycle detected in neuron ${neuronId} <- ${sourceId}`);
     }
-    if (sourceType === SOURCE_INTERNAL && targetType === TARGET_INTERNAL && sourceId !== neuronId) {
+    if (
+      neurons.neuronMap[sourceId].type === NEURON_TYPE_INTERNAL
+      && neurons.neuronMap[neuronId].type === NEURON_TYPE_INTERNAL
+      && sourceId !== neuronId
+    ) {
       console.log('Internal connection detected', sourceId, neuronId);
       throw new Error('Currently internal neurons cannot connect with each other');
     }
-    if (sourceType === SOURCE_INPUT) {
+    if (neurons.neuronMap[sourceId].type === NEURON_TYPE_INPUT) {
       validNeurons.add(neuronId);
       validNeurons.add(sourceId);
     } else {
-      const subValidNeurons = traverseNeuron(sourceId, connectionMap, [...visitedNeurons, neuronId]);
+      const subValidNeurons = traverseNeuron(
+        sourceId,
+        connectionMap,
+        neurons,
+        [...visitedNeurons, neuronId]
+      );
       if (subValidNeurons.size) {
         validNeurons.add(neuronId);
         for (let neuron of subValidNeurons) {
@@ -54,71 +53,91 @@ export const traverseNeuron = (neuronId: Neuron['id'], connectionMap: Connection
     return validNeurons;
   }, new Set<Neuron['id']>());
 
-export const traverseOutputNeurons = (outputNeurons: Neuron[], connectionMap: ConnectionMap) =>
-  outputNeurons.reduce((validNeurons, neuron) => {
-    for (let validNeuron of traverseNeuron(neuron.id, connectionMap)) {
+export const traverseOutputNeurons = (neurons: NeuronsData, connectionMap: ConnectionMap) =>
+  neurons.outputNeurons.reduce<Set<Neuron['id']>>((validNeurons, neuron) => {
+    for (let validNeuron of traverseNeuron(neuron.id, connectionMap, neurons)) {
       validNeurons.add(validNeuron);
     }
     return validNeurons;
   }, new Set<Neuron['id']>());
 
 
-export const getRawConnectionMap = (genome: ParsedGene[]) => {
+export const getRawConnectionMap = (creatureIndex: number, genomes: Genomes, config: Config) => {
   const connectionMap: ConnectionMap = {
     from: {},
     to: {},
   };
-  genome.forEach((gene, index) => {
-    const [
-      sourceType,
-      sourceId,
-      targetType,
-      targetId,
-      weight,
-    ] = gene;
-    if (!sourceId || !targetId) {
-      console.log('connectionMap 0', sourceType, sourceId, targetType, targetId, weight, index);
-    }
-    connectionMap.from[sourceId] = push(connectionMap.from[sourceId], { weight, index, sourceType, targetId, targetType });
-    connectionMap.to[targetId] = push(connectionMap.to[targetId], { weight, index, targetType, sourceId, sourceType });
+  times(config.genomeLength, geneIndex => {
+    // const sourceType = genomes.sourceType[creatureIndex * config.genomeLength + geneIndex];
+    const sourceId = genomes.sourceId[creatureIndex * config.genomeLength + geneIndex];
+    // const targetType = genomes.targetType[creatureIndex * config.genomeLength + geneIndex];
+    const targetId = genomes.targetId[creatureIndex * config.genomeLength + geneIndex];
+    const weight = genomes.weight[creatureIndex * config.genomeLength + geneIndex];
+
+    connectionMap.from[sourceId] = push(connectionMap.from[sourceId], { weight, index: geneIndex, targetId });
+    connectionMap.to[targetId] = push(connectionMap.to[targetId], { weight, index: geneIndex, sourceId });
   });
   return connectionMap;
 };
 
 export const cleanGenome = (
-  genome: ParsedGene[],
-  validNeurons,
+  creatureIndex: number,
+  genomes: Genomes,
+  validNeurons: Set<Neuron['id']>,
 ) => {
-  return genome.filter(([, sourceId, , targetId], index) => {
-    const isDuplicate = genome.findIndex(([, compareSourceId, , compareTargetId]) => {
-      return sourceId === compareSourceId && targetId === compareTargetId;
-    }) !== index;
+  times(config.genomeLength, geneIndex => {
+    const sourceId = genomes.sourceId[creatureIndex * config.genomeLength + geneIndex];
+    const targetId = genomes.targetId[creatureIndex * config.genomeLength + geneIndex];
 
-    return validNeurons.has(sourceId) && validNeurons.has(targetId) && !isDuplicate;
+    let isDuplicate = false;
+    times(config.genomeLength, compareGeneIndex => {
+      if (compareGeneIndex === geneIndex) {
+        return;
+      }
+      const compareSourceId = genomes.sourceId[creatureIndex * config.genomeLength + compareGeneIndex];
+      const compareTargetId = genomes.targetId[creatureIndex * config.genomeLength + compareGeneIndex];
+      if (sourceId === compareSourceId && targetId === compareTargetId) {
+        isDuplicate = true;
+      }
+    });
+
+    if (isDuplicate || !validNeurons.has(sourceId) || !validNeurons.has(targetId)) {
+      genomes.sourceId[creatureIndex * config.genomeLength + geneIndex] = 0;
+      genomes.targetId[creatureIndex * config.genomeLength + geneIndex] = 0;
+      genomes.weight[creatureIndex * config.genomeLength + geneIndex] = 0;
+    }
   });
 };
 
 export const calculateGraph = (
-  inputs: InputValues,
-  genome: ParsedGene[],
-  neurons: SimulationNeurons,
-  validNeurons: Creature['validNeurons']
+  creatureIndex: number,
+  inputValues: InputValues,
+  simulator: Simulator,
 ) => {
-  const connectionMap = getRawConnectionMap(genome);
+  const connectionMap = getRawConnectionMap(creatureIndex, simulator.state.genomes, config);
   const inputAndInternalNeuronsValuesMap: { [neuronId: Neuron['id']]: number } = {};
   const outputNeuronsValuesMap: { [neuronId: Neuron['id']]: number } = {};
 
+  const validNeuronsMap = new Set();
+  times(simulator.neurons.numberOfNeurons, neuronIndex => {
+    const validNeuronId =
+      simulator.state.creaturesData.validNeurons[creatureIndex * simulator.neurons.numberOfNeurons + neuronIndex];
+    if (validNeuronId) {
+      validNeuronsMap.add(validNeuronId);
+    }
+  });
+
   // calculating input neurons
-  neurons.inputNeurons.forEach(neuron => {
-    if (!validNeurons.has(neuron.id)) {
+  simulator.neurons.inputNeurons.forEach(neuron => {
+    if (!validNeuronsMap.has(neuron.id)) {
       return;
     }
-    inputAndInternalNeuronsValuesMap[neuron.id] = neuron.activation(inputs[neuron.id]);
+    inputAndInternalNeuronsValuesMap[neuron.id] = neuron.activation(inputValues[neuron.id]);
   });
 
   // calculating internal neurons
-  neurons.internalNeurons.forEach(neuron => {
-    if (!validNeurons.has(neuron.id)) {
+  simulator.neurons.internalNeurons.forEach(neuron => {
+    if (!validNeuronsMap.has(neuron.id)) {
       return;
     }
     const inputSum = (connectionMap.to[neuron.id] || []).reduce((sum, connection) => {
@@ -128,8 +147,8 @@ export const calculateGraph = (
   });
 
   // calculating output neurons
-  neurons.outputNeurons.forEach(neuron => {
-    if (!validNeurons.has(neuron.id)) {
+  simulator.neurons.outputNeurons.forEach(neuron => {
+    if (!validNeuronsMap.has(neuron.id)) {
       return;
     }
     const inputSum = (connectionMap.to[neuron.id] || []).reduce((sum, connection) => {

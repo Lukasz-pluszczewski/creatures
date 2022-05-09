@@ -5,13 +5,11 @@ import {
 } from './constants';
 import { Config } from './config';
 
-import { parseGene } from './geneUtils';
 import {
   cleanGenome,
   getRawConnectionMap,
   traverseOutputNeurons,
 } from './graphUtils';
-import { generateNeurons } from './neuronsUtils';
 
 import { testGenome, testValidGenome } from './testEntities';
 
@@ -39,18 +37,6 @@ const configForTest = {
 } as unknown as Config;
 
 
-const {
-  outputNeurons,
-} = generateNeurons(configForTest);
 
-describe('graph utils', () => {
-  it('should clean up genome graph', () => {
-    const parsedTestGonome = testGenome.map(parseGene);
-    const rawConnectionMap = getRawConnectionMap(parsedTestGonome);
-    const validNeurons = traverseOutputNeurons(outputNeurons, rawConnectionMap);
-    const validGenome = cleanGenome(parsedTestGonome, validNeurons);
-
-    expect(Array.from(validNeurons).sort()).toEqual([3, 4, 5, 64, 65, 128].sort());
-    expect(validGenome.sort()).toEqual(testValidGenome.map(parseGene).sort());
-  });
+describe('graphUtils', () => {
 });
