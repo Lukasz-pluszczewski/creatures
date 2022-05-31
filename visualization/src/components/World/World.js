@@ -26,33 +26,17 @@ const getClickedCreatureIndex = (chartX, chartY, data) => {
   return closest[0];
 };
 
-const getCreatureData = (creatures, lastGenerationSteps, animatingStep) => {
-  if (animatingStep === null) {
-    return creatures.map((creature, index) => ({
-      x: creature.x,
-      y: creature.y,
-      creatureIndex: index,
-      color: creature.color,
-    }));
-  }
-  return (lastGenerationSteps[animatingStep]?.creatures || []).map(({ id, x, y }, index) => ({
-    x: x,
-    y: y,
+const getCreaturesData = (step) => {
+  return step.creaturesData.map((creature, index) => ({
+    x: creature.x,
+    y: creature.y,
     creatureIndex: index,
-    color: '#000000',
+    color: creature.color || undefined,
   }));
 };
 
-const getFoodData = (food, lastGenerationSteps, animatingStep) => {
-  if (animatingStep === null) {
-    return food.map(({ x, y }, index) => ({
-      x: x,
-      y: y,
-      foodIndex: index,
-      color: '#00ff00',
-    }));
-  }
-  return (lastGenerationSteps[animatingStep]?.food || []).map(({ id, x, y }, index) => ({
+const getFoodData = (step) => {
+  return step.foodData.map(({ x, y }, index) => ({
     x: x,
     y: y,
     foodIndex: index,
@@ -62,30 +46,32 @@ const getFoodData = (food, lastGenerationSteps, animatingStep) => {
 
 export const World = ({
   config,
-  creatures,
-  food,
-  creatureSelectedIndex,
+  generation,
+  step,
+  steps,
   handleCreatureSelectIndex,
-  lastGenerationSteps,
+  isAnimating,
+  setIsAnimating,
 }) => {
   const [animatingStep, setAnimatingStep] = useState(null);
   useAnimation(e => {
-    if (animatingStep !== null) {
-      if (animatingStep >= lastGenerationSteps.length) {
+    if ((isAnimating || isAnimating === 0)) {
+      if (animatingStep >= steps.length) {
         setAnimatingStep(null);
+        setIsAnimating(false);
       } else {
-        console.log('Animating step', animatingStep);
-        setAnimatingStep(animatingStep + 1);
+        setAnimatingStep((animatingStep || 0) + 1);
       }
     }
   }, 30);
 
-  if (!config || !creatures) return null;
+  if (!config || !generation || !step) return null;
+
+  const shownStep = isAnimating && steps[animatingStep] ? steps[animatingStep] : step;
 
   const { worldSizeY, worldSizeX } = config;
-  const data = getCreatureData(creatures, lastGenerationSteps, animatingStep);
-  const foodData = getFoodData(food, lastGenerationSteps, animatingStep);
-  // console.log('data for chart', config, data);
+  const data = getCreaturesData(shownStep);
+  const foodData = getFoodData(shownStep);
 
   const handleMouseDown = nextState => {
     const { chartX, chartY, xValue, yValue } = nextState || {};
@@ -126,9 +112,9 @@ export const World = ({
           </Scatter>
         </ScatterChart>
       </ResponsiveContainer>
-      <Button disabled={!lastGenerationSteps?.length} onClick={() => setAnimatingStep(1)}>
-        Play last generation
-      </Button>
+      {/*<Button disabled={!lastGenerationSteps?.length} onClick={() => setAnimatingStep(1)}>*/}
+      {/*  Play last generation*/}
+      {/*</Button>*/}
     </div>
   )
 };

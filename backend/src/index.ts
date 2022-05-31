@@ -1,29 +1,30 @@
 import simpleExpress from 'simple-express-framework';
+import cloneDeep from 'lodash.clonedeep';
 import { Config, config } from './config';
 import { generateNeurons } from './neuronsUtils';
 import { createSimulator } from './simulator';
-import { Simulator } from './types';
+import { CreaturesData, Simulator } from './types';
 import { createArray } from './arrayUtils';
 import { clamp, mapNumberToDifferentRange } from './numberUtils';
 import { MAX_16_BIT_INTEGER } from './constants';
+import { getCreaturesDataView, getFoodDataView, getGenomesView } from './objectUtils';
+import { analyzeCreatures } from './debugUtils';
 
 const neuronsData = generateNeurons(config);
 
 console.log('Starting...');
-Object.entries(config).forEach(([value, key]) => {
-  console.log(`${key}: ${value}`);
-});
+console.dir(config);
 console.log(`Input neurons (${neuronsData.inputNeurons.length}):`);
-neuronsData.inputNeurons.forEach(neuron => console.log(`    ${neuron.id}: ${neuron.label}`));
+neuronsData.inputNeurons.forEach(neuron => console.log(`  ${neuron.id}: ${neuron.label}`));
 console.log(`Internal neurons (${neuronsData.internalNeurons.length}):`);
-neuronsData.internalNeurons.forEach(neuron => console.log(`    ${neuron.id}: ${neuron.label}`));
+neuronsData.internalNeurons.forEach(neuron => console.log(`  ${neuron.id}: ${neuron.label}`));
 console.log(`Output neurons (${neuronsData.outputNeurons.length}):`);
-neuronsData.outputNeurons.forEach(neuron => console.log(`    ${neuron.id}: ${neuron.label}`));
+neuronsData.outputNeurons.forEach(neuron => console.log(`  ${neuron.id}: ${neuron.label}`));
 
-const resultCondition = (creatureIndex: number, config: Config, simulator: Simulator) => {
+const resultCondition = (creatureIndex: number, creaturesData: CreaturesData, config: Config, simulator: Simulator) => {
   // const x = simulator.state.creaturesData.x[creatureIndex];
   // const y = simulator.state.creaturesData.y[creatureIndex];
-  const energy = simulator.state.creaturesData.energy[creatureIndex];
+  const energy = creaturesData.energy[creatureIndex];
 
   // const rightWallDistance = (config.worldSizeX - x) / config.worldSizeX;
   // const leftWallDistance = x / config.worldSizeX;
@@ -43,13 +44,14 @@ const resultCondition = (creatureIndex: number, config: Config, simulator: Simul
   //   1
   // );
   const reproductionProbability = mapNumberToDifferentRange(
-    clamp(energy, 0, Math.floor(0.1 * MAX_16_BIT_INTEGER)),
+    clamp(energy, 0, config.maximumEnergy),
     0,
-    Math.floor(0.1 * MAX_16_BIT_INTEGER),
+    config.maximumEnergy,
     0,
     1
   );
 
+  // console.log(`Reproducing gen: ${simulator.state.generation}; creature: ${creatureIndex}; energy ${energy}; reprodProb`,reproductionProbability);
   return { reproductionProbability };
 };
 
@@ -60,54 +62,73 @@ const newSimulator = () => {
     neuronsData,
     resultCondition
   );
+
+  // generated creatures validation
+  const {
+    // creaturesWithNoValidGenes,
+    // validCreaturesWithFirstGeneInvalid,
+    // creaturesWithSomeInvalidGenes,
+    creaturesWithValidGenes,
+  } = analyzeCreatures(config, simulator);
+
+  if (!creaturesWithValidGenes.length) {
+    throw new Error('No creatures with at least one gene valid');
+  }
+
+  simulator.simulateStep();
 };
 newSimulator();
-
+// simulator.simulateGeneration();
+// simulator.simulateGeneration();
+// simulator.simulateGeneration();
 
 simpleExpress({
   port: 8080,
   routes: [
     ['/', {
       get: () => {
-        const getCreatureView = (creatureId) => {
-          const x = simulator.state.creaturesData.x[creatureId];
-          const y = simulator.state.creaturesData.y[creatureId];
-          const energy = simulator.state.creaturesData.energy[creatureId];
-          const additionalData = simulator.state.creaturesData.additionalData[creatureId];
-
-          return {
-            x,
-            y,
-            energy,
-            additionalData,
-          };
-        };
-        // TODO: create something frontend-readable from typed arrays
-
-
-        // const getCreatureView = (creature: Creature) => ({
-        //   ...creature,
-        //   color: genomeToColor(creature.genome, creaturesGenomeVariation),
-        //   genome: creature.parsedGenome,
-        //   parsedGenome: undefined,
-        //   ancestors: creature.ancestors
-        //     ? creature.ancestors.map(ancestor => ({
-        //       ...ancestor,
-        //       genome: ancestor.parsedGenome,
-        //       parsedGenome: undefined,
-        //     }))
-        //     : undefined,
-        // });
+        const creaturesDataView = getCreaturesDataView(simulator.state.creaturesData, simulator.neurons);
+        const genomesView = getGenomesView(simulator.state.creaturesData, simulator.state.genomes, config);
 
         return ({
           status: 200,
           body: {
             config,
-            step: simulator.state.step,
-            generation: simulator.state.generation,
-            // food: getAllFood(simulator.world),
+            current: {
+              creaturesData: creaturesDataView,
+              genomes: genomesView,
+              generation: simulator.state.generation,
+              step: simulator.state.step,
+            },
+            generations: simulator.generationsHistory.map((generation, index) => ({
+              stepHistory: generation.stepHistory.map(step => ({
+                creaturesData: step?.state?.creaturesData
+                  ? getCreaturesDataView(step.state.creaturesData, simulator.neurons)
+                  : null,
+                foodData: step?.state?.foodData
+                  ? getFoodDataView(step.state.foodData, simulator)
+                  : null,
+                creaturesNumber: step?.creaturesNumber,
+                creaturesWithEnergy: step?.creaturesWithEnergy,
+                timeStart: step?.timeStart,
+                timeEnd: step?.timeEnd,
+              })),
+              totalEnergy: generation.totalEnergy,
+              creaturesNumber: generation.creaturesNumber,
+              totalOffspring: generation.totalOffspring,
+              timeStart: generation.timeStart,
+              timeEnd: generation.timeEnd,
+              state: generation.state
+                ? {
+                  genomes: getGenomesView(
+                    generation.stepHistory[0].state.creaturesData,
+                    generation.state.genomes,
+                    config
+                  ),
+                }
+                : null,
+            })),
             neurons: neuronsData,
-            history: simulator.generationsHistory,
           },
         });
       },
@@ -140,15 +161,22 @@ simpleExpress({
     ['/generation/:number', {
       post: ({ params: { number } }) => {
         let timeStart = performance.now();
+        let lastTime = timeStart;
+        let lastIndex = 0;
         console.time(`Simulated ${number} generations`);
         createArray(parseInt(number)).forEach((__, index) => {
-          if (performance.now() - timeStart > 10000) {
-            console.log(`Simulated ${index} generations`);
-            timeStart = performance.now();
+          const now = performance.now();
+          if (now - lastTime > 10000) {
+            console.log(`Simulated ${index} generations in ${(now - lastTime).toFixed(2)}ms (${((index - lastIndex) * 1000 / (now - lastTime)).toFixed(2)} per second)`);
+            lastTime = now;
+            lastIndex = index;
           }
+          console.log('Start generation', index);
           simulator.simulateGeneration();
+          console.log('End generation', index);
         });
         console.timeEnd(`Simulated ${number} generations`);
+        console.log(`(ave: ${(number * 1000 / (performance.now() - timeStart)).toFixed(2)} per second)`);
 
         return {
           status: 200,

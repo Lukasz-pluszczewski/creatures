@@ -1,12 +1,15 @@
 import { Config } from './config';
 
 import { getIndexFromCoordinates, sample, times } from './arrayUtils';
-import { nonUniformRandomInteger, randomInteger, randomSign } from './numberUtils';
+import { clamp, nonUniformRandomInteger, randomInteger, randomSign } from './numberUtils';
 import { cleanGenome, getRawConnectionMap, traverseOutputNeurons } from './graphUtils';
 
 import { CreaturesData, Genomes, NeuronsData, WorldData } from './types';
 import { MAX_16_BIT_SIGNED_INTEGER } from './constants';
 import { doWithProbability } from './probabilityUtils';
+
+export const isCreatureIndexValid = (creatureIndex: number, creaturesDataAlive: CreaturesData['alive']) =>
+  !!creaturesDataAlive[creatureIndex];
 
 type CreateCreatureParams = {
   index: number,
@@ -32,6 +35,7 @@ export const createCreature = (
     config,
   }: CreateCreatureParams,
 ): void => {
+  creaturesData.alive[index] = 1;
   creaturesData.x[index] = randomInteger(0, config.worldSizeX);
   creaturesData.y[index] = randomInteger(0, config.worldSizeY);
   world.creatures[getIndexFromCoordinates(creaturesData.x[index], creaturesData.y[index], config.worldSizeX)] = index;
@@ -43,9 +47,18 @@ export const createCreature = (
     times(config.genomeLength, geneIndex => {
       genomes.sourceId[index * config.genomeLength + geneIndex] =
         parseInt(sample(Object.keys(neurons.possibleConnectionsFrom)));
+
+      if (!genomes.sourceId[index * config.genomeLength + geneIndex]) {
+        throw new Error('No source neuron');
+      }
+
+      if (index === 2 && geneIndex === 0) {
+        // console.log('creating random genome', index * config.genomeLength + geneIndex, genomes.sourceId[index * config.genomeLength + geneIndex], Object.keys(neurons.possibleConnectionsFrom));
+      }
       genomes.targetId[index * config.genomeLength + geneIndex] =
         sample(neurons.possibleConnectionsFrom[genomes.sourceId[index * config.genomeLength + geneIndex]]);
-      genomes.weight[index * config.genomeLength + geneIndex] = randomInteger(-32768, 32767);
+      genomes.weight[index * config.genomeLength + geneIndex] =
+        randomInteger(- MAX_16_BIT_SIGNED_INTEGER - 1, MAX_16_BIT_SIGNED_INTEGER);
     });
   } else {
     // mutating parent genome
@@ -58,20 +71,39 @@ export const createCreature = (
         config.mutationProbabilityMatrix.sourceId,
         () => {
           const possibleSourceNeurons = Object.keys(neurons.possibleConnectionsFrom);
-          const sourceNeuronIdIndex = possibleSourceNeurons.findIndex(sourceNeuronId =>
-            parseInt(sourceNeuronId) === lastGenomes.sourceId[parentAbsoluteGenomeIndex]
-          );
-          const newSourceNeuronIdIndex = (
-            sourceNeuronIdIndex + randomSign() * nonUniformRandomInteger(1, 10, 1 / 5)
-          ) % possibleSourceNeurons.length;
-          genomes.sourceId[absoluteGenomeIndex] =
-            parseInt(possibleSourceNeurons[newSourceNeuronIdIndex]);
+          if (lastGenomes.sourceId[parentAbsoluteGenomeIndex]) {
+            const sourceNeuronIdIndex = possibleSourceNeurons.findIndex(sourceNeuronId =>
+              parseInt(sourceNeuronId) === lastGenomes.sourceId[parentAbsoluteGenomeIndex]
+            );
+            const newSourceNeuronIdIndex = clamp(
+              (
+                sourceNeuronIdIndex + randomSign() * nonUniformRandomInteger(1, 10, 1 / 5)
+              ) % possibleSourceNeurons.length,
+              0,
+              possibleSourceNeurons.length - 1,
+            );
+            genomes.sourceId[absoluteGenomeIndex] =
+              parseInt(possibleSourceNeurons[newSourceNeuronIdIndex]);
+          } else {
+            genomes.sourceId[absoluteGenomeIndex] =
+              parseInt(sample(possibleSourceNeurons));
+          }
         },
         () => {
-          genomes.sourceId[index * config.genomeLength + geneIndex] =
-            lastGenomes.sourceId[parentAbsoluteGenomeIndex];
+          if (lastGenomes.sourceId[parentAbsoluteGenomeIndex]) {
+            genomes.sourceId[absoluteGenomeIndex] =
+              lastGenomes.sourceId[parentAbsoluteGenomeIndex]
+          } else {
+            const possibleSourceNeurons = Object.keys(neurons.possibleConnectionsFrom);
+            genomes.sourceId[absoluteGenomeIndex] =
+              parseInt(sample(possibleSourceNeurons));
+          }
         }
       );
+
+      if (!genomes.sourceId[absoluteGenomeIndex]) {
+        throw new Error('Source neuron is incorrect');
+      }
 
       // mutating targetId
       doWithProbability(
@@ -89,7 +121,7 @@ export const createCreature = (
         },
         () => {
           const possibleTargetNeurons =
-            neurons.possibleConnectionsFrom[genomes.sourceId[index * config.genomeLength + geneIndex]];
+            neurons.possibleConnectionsFrom[genomes.sourceId[absoluteGenomeIndex]];
           if (possibleTargetNeurons.includes(lastGenomes.targetId[parentAbsoluteGenomeIndex])) {
             genomes.targetId[absoluteGenomeIndex] = lastGenomes.targetId[parentAbsoluteGenomeIndex];
           } else {
@@ -116,8 +148,13 @@ export const createCreature = (
   const validNeurons = traverseOutputNeurons(neurons, rawConnectionMap);
   cleanGenome(index, genomes, validNeurons);
 
+  // if (validNeurons.size === 0) {
+  //   throw new Error('Creature with no valid neurons');
+  // }
+
   // saving validNeurons
-  validNeurons.forEach((validNeuronId, validNeuronIdIndex) => {
-    creaturesData[index * neurons.numberOfNeurons + validNeuronIdIndex] = validNeuronId;
+  let validNeuronIdIndex = 0;
+  validNeurons.forEach((validNeuronId) => {
+    creaturesData.validNeurons[index * neurons.numberOfNeurons + validNeuronIdIndex++] = validNeuronId;
   });
 };

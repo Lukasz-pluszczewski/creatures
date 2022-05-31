@@ -118,10 +118,14 @@ export const calculateGraph = (
   const inputAndInternalNeuronsValuesMap: { [neuronId: Neuron['id']]: number } = {};
   const outputNeuronsValuesMap: { [neuronId: Neuron['id']]: number } = {};
 
+  // console.log('connection map');
+  // console.dir(connectionMap, { depth: null });
+
   const validNeuronsMap = new Set();
   times(simulator.neurons.numberOfNeurons, neuronIndex => {
     const validNeuronId =
       simulator.state.creaturesData.validNeurons[creatureIndex * simulator.neurons.numberOfNeurons + neuronIndex];
+
     if (validNeuronId) {
       validNeuronsMap.add(validNeuronId);
     }

@@ -10,6 +10,11 @@ export type Genomes = {
   targetId: Uint8Array,
   weight: Int16Array,
 };
+export type GenomeView = {
+  sourceId: number,
+  targetId: number,
+  weight: number,
+}[];
 
 // data stored in traditional array, not accessed frequently, indexes start with 1
 export type CreaturesAdditionalData = {
@@ -18,11 +23,20 @@ export type CreaturesAdditionalData = {
 
 // indexes start with 1
 export type CreaturesData = {
+  alive: Int8Array,
   validNeurons: Uint16Array | Uint8Array, // there are no neurons with id = 0
   energy: Uint16Array,
   additionalData: CreaturesAdditionalData[],
   y: Uint16Array | Uint8Array,
   x: Uint16Array | Uint8Array,
+};
+export type CreatureDataView = {
+  alive: boolean,
+  validNeurons: number[],
+  energy: number,
+  additionalData: CreaturesAdditionalData,
+  y: number,
+  x: number,
 };
 
 // indexes start with 1
@@ -31,11 +45,20 @@ export type FoodData = {
   x: Uint16Array | Uint8Array,
   energy: Uint16Array,
 };
+export type FoodDataView = {
+  y: number,
+  x: number,
+  energy: number,
+};
 
 // position of creatures and food in the world, both start with 0, because these are world grid indexes not food's or creatures'
 export type WorldData = {
   creatures: Uint16Array,
   food: Uint16Array,
+};
+export type WorldDataView = {
+  creatures: number,
+  food: number,
 };
 
 type ConnectionMapEntry = { weight: number, index: number };
@@ -83,11 +106,15 @@ export type GenerationHistoryEntry = {
   creaturesNumber?: number,
   totalOffspring?: number,
   state?: Pick<Simulator['state'], 'genomes' | 'lastGenomes'> | null,
+  timeStart?: number,
+  timeEnd?: number,
 };
 export type StepHistoryEntry = {
   creaturesNumber: number,
   creaturesWithEnergy: number,
   state: Omit<Simulator['state'], 'genomes' | 'lastGenomes'> | null,
+  timeStart: number,
+  timeEnd: number,
 };
 export type Simulator = {
   generationsHistory: GenerationHistoryEntry[],
@@ -99,12 +126,13 @@ export type Simulator = {
     lastCreaturesData: CreaturesData,
     lastGenomes: Genomes,
     foodData: FoodData,
+    maxFoodIndex: number,
     generation: number,
     step: number,
   },
   neurons: NeuronsData,
   config: Config,
-  resultCondition: (creatureIndex: number, config: Config, simulator: Simulator) => ({
+  resultCondition: (creatureIndex: number, creaturesData: CreaturesData, config: Config, simulator: Simulator) => ({
     reproductionProbability: number,
   }),
   cloneState: <

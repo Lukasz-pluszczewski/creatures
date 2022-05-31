@@ -1,6 +1,7 @@
 import { Config } from './config';
 import { FoodData, WorldData } from './types';
 import { getIndexFromCoordinates, iterateOverRange } from './arrayUtils';
+import { time, timeEnd } from './debugUtils';
 
 
 // Return list of coordinates around the point with horizontal and vertical distance of "level" from "index"
@@ -50,9 +51,13 @@ export const getLevel = (x: number, y: number, level: number, width: number, hei
 
 export const findClosestFood = (x, y, world: WorldData, foodData: FoodData, config: Config) => {
   let level = 1;
+  time('findClosestFood 1');
   let coordinatesAround = getLevel(x, y, level, config.worldSizeX, config.worldSizeY);
+  timeEnd('findClosestFood 1');
   let closestFoodIndex: number = null;
+  time('findClosestFood while');
   while (coordinatesAround.length && !closestFoodIndex) {
+    time('findClosestFood 2');
     coordinatesAround.forEach(([x, y]) => {
       const foodIndex = world.food[getIndexFromCoordinates(x, y, config.worldSizeX)];
       if (foodIndex) {
@@ -60,9 +65,13 @@ export const findClosestFood = (x, y, world: WorldData, foodData: FoodData, conf
       }
     });
 
+    timeEnd('findClosestFood 2');
     level++;
+    time('getLevel ' + level);
     coordinatesAround = getLevel(x, y, level, config.worldSizeX, config.worldSizeY);
+    timeEnd('getLevel ' + level);
   }
+  timeEnd('findClosestFood while');
 
   return closestFoodIndex;
 };

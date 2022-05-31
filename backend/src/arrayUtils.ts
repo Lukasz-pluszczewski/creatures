@@ -24,3 +24,19 @@ export const getCoordinatesFromIndex = (index: number, width: number) => {
   const y = Math.floor(index / width);
   return [ x, y ];
 }
+
+const batch = (array: any, batchLength: number) => {
+  const batches = [];
+  let batch = [];
+  for (let i = 0; i < array.length; i++) {
+    batch.push(array[i]);
+    if (batch.length === batchLength) {
+      batches.push(batch);
+      batch = [];
+    }
+  }
+  if (batch.length) {
+    batches.push(batch);
+  }
+  return batches;
+};

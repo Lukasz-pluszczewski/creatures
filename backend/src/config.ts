@@ -8,9 +8,9 @@ import {
 
 const internalNeurons = 10;
 export const config = {
-  population: 1000,
+  population: 100,
   generationLength: 200,
-  genomeLength: 30,
+  genomeLength: 100,
   internalNeurons,
   worldSizeX: 128,
   worldSizeY: 128,
@@ -24,11 +24,13 @@ export const config = {
 
   // energy is in range [0, 65535]
   initialEnergy: Math.floor(0.01 * MAX_16_BIT_INTEGER),
+  maximumEnergy: Math.floor(0.03 * MAX_16_BIT_INTEGER),
   foodDensity: 0.02, // probability of spawning food in a cell
   foodNutrition: Math.floor(0.01 * MAX_16_BIT_INTEGER),
-  moveEnergyCost: Math.floor(0.0005 * MAX_16_BIT_INTEGER),
+  moveEnergyCost: Math.floor(0.0001 * MAX_16_BIT_INTEGER),
   stepEnergyCost: Math.floor(0.0001 * MAX_16_BIT_INTEGER),
-  foodLimit: 250, // food will not be regrown if there is at least this amount of it
+  foodRegrowLimit: 250, // food will not be regrown if there is at least this amount of it
+  foodLimit: 1000, // food will not be spawned if there is at least this amount of it
 
   maxInputNeuronId: MIN_INPUT_NEURON_ID + 8,
   maxInternalNeuronId: MIN_INTERNAL_NEURON_ID + internalNeurons - 1,
@@ -41,14 +43,20 @@ export const config = {
   },
   weightMultiplier: 0.0002, // weight can be in range [-32768 * weightMultiplier, 32767 * weightMultiplier]; [-6.55, 6.55]
 
-  stepLogFrequency: 1, // n % stepLogFrequency === 0 => log n-th step
-  generationLogFrequency: 1, // n % generationLogFrequency === 0 => log n-th generation
+  stepLogFrequency: 1, // n % stepLogFrequency === 0 => log n-th step; 0 => logging disabled
+  generationLogFrequency: 1, // n % generationLogFrequency === 0 => log n-th generation; 0 => logging disabled
+
+  enableLogs: true,
 } as const;
 
 export type Config = typeof config;
 
 const validateConfig = (config: Config) => {
-
+  if (config.population > config.populationLimit) {
+    throw new Error(
+      `populationLimit (${config.populationLimit}) is smaller than population (${config.population})`
+    );
+  }
 };
 validateConfig(config);
 

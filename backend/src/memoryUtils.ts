@@ -14,34 +14,44 @@ export const createPopulationDataStorage = (
   neurons: NeuronsData
 ): { genomes: Genomes, creaturesData: CreaturesData } => {
   // creating memory storage for genomes' values SourceType, SourceId, TargetType, TargetId, Weight
+  // creatures indexes start with 1
   const genomes = {
-    sourceId: new Uint8Array(config.populationLimit * config.genomeLength),
-    targetId: new Uint8Array(config.populationLimit * config.genomeLength),
-    weight: new Int16Array(config.populationLimit * config.genomeLength),
+    sourceId: new Uint8Array((config.populationLimit + 1) * config.genomeLength),
+    targetId: new Uint8Array((config.populationLimit + 1) * config.genomeLength),
+    weight: new Int16Array((config.populationLimit + 1) * config.genomeLength),
   };
 
   // creating memory storage for creatures' data
+  // creatures indexes start with 1
   const creaturesData = {
     x: config.worldSizeX > 255
-      ? new Uint16Array(config.populationLimit)
-      : new Uint8Array(config.populationLimit),
+      ? new Uint16Array((config.populationLimit + 1))
+      : new Uint8Array((config.populationLimit + 1)),
     y: config.worldSizeY > 255
-      ? new Uint16Array(config.populationLimit)
-      : new Uint8Array(config.populationLimit),
-    validNeurons: new Uint8Array(config.populationLimit * neurons.numberOfNeurons),
-    energy: new Uint16Array(config.populationLimit),
+      ? new Uint16Array((config.populationLimit + 1))
+      : new Uint8Array((config.populationLimit + 1)),
+    validNeurons: new Uint8Array((config.populationLimit + 1) * neurons.numberOfNeurons),
+    energy: new Uint16Array((config.populationLimit + 1)),
+    alive: new Int8Array((config.populationLimit + 1)),
 
     // creating memory storage for creatures' additional data that is not accessed frequently
+    // creatures indexes start with 1
     additionalData: [] as CreaturesAdditionalData[],
   };
 
   return { genomes, creaturesData };
 };
 export const clearDataStorage = <T extends { [key: string]: TypedArray | any }>(data: T) => {
-  Object.values(data).forEach((typedArray) => typedArray.fill(0));
+  Object.entries(data).forEach(([key, value]) => {
+    if (isTypedArray(value)){
+      value.fill(0);
+    } else {
+      data[key as keyof T] = [] as TypedArray | any;
+    }
+  });
 };
 export const copyDataStorage = (source: Record<string, TypedArray | any>, target: Record<string, TypedArray | any>) => {
-  Object.entries(target).forEach(([key, value]) => {
+  Object.entries(source).forEach(([key, value]) => {
     if (isTypedArray(value) && isTypedArray(target[key])){
       return target[key].set(value);
     }
@@ -49,22 +59,6 @@ export const copyDataStorage = (source: Record<string, TypedArray | any>, target
   });
 }
 
-  // delete me
-// export const copyDataStorage = (
-//   source: { genomes: Genomes, creaturesData: CreaturesData, world: WorldData },
-//   target: { genomes: Genomes, creaturesData: CreaturesData, world: WorldData }
-// ) => {
-//   target.genomes.sourceId.set(source.genomes.sourceId);
-//   target.genomes.targetId.set(source.genomes.targetId);
-//   target.genomes.weight.set(source.genomes.weight);
-//   target.creaturesData.x.set(source.creaturesData.x);
-//   target.creaturesData.x.set(source.creaturesData.x);
-//   target.creaturesData.validNeurons.set(source.creaturesData.validNeurons);
-//   target.creaturesData.energy.set(source.creaturesData.energy);
-//   target.creaturesData.additionalData = source.creaturesData.additionalData;
-//   target.world.creatures.set(source.world.creatures);
-//   target.world.food.set(source.world.food);
-// };
 export const createFoodDataStorage = (config: Config) => {
   const maxFoodNumber = config.worldSizeX * config.worldSizeY;
   const foodData: FoodData = {

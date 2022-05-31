@@ -10,6 +10,8 @@ import { clamp, mapNumberToDifferentRange, randomInteger } from './numberUtils';
 import { clearDataStorage, copyDataStorage, createFoodDataStorage, createPopulationDataStorage } from './memoryUtils';
 import { doWithProbability } from './probabilityUtils';
 
+import { saveToFile, time, timeEnd } from './debugUtils';
+
 import { Config } from './config';
 import {
   InputValues,
@@ -59,7 +61,7 @@ export const createSimulator = (
   // creating food
   let foodIndex = 0;
   times(config.worldSizeX * config.worldSizeY, index => {
-    if (Math.random() < config.foodDensity) {
+    if (foodIndex < config.foodLimit && Math.random() < config.foodDensity) {
       foodData.x[foodIndex] = index % config.worldSizeX;
       foodData.y[foodIndex] = Math.floor(index / config.worldSizeX);
       foodData.energy[foodIndex] = config.foodNutrition;
@@ -83,6 +85,7 @@ export const createSimulator = (
       lastCreaturesData,
       lastWorld,
       foodData,
+      maxFoodIndex: foodIndex - 1,
       generation: 0,
       step: 0,
     },
@@ -90,12 +93,21 @@ export const createSimulator = (
       TOmit extends keyof Simulator['state'] = never,
       TPick extends keyof Simulator['state'] = keyof Simulator['state']
     >({ omit, pick }: { omit?: TOmit[], pick?: TPick[] } = {}): Omit<Pick<Simulator['state'], TPick>, TOmit> => {
-      const clonedState = omitPick(simulator.state, { omit, pick });
-      Object.keys(clonedState).forEach(key => {
-        clonedState[key] = cloneDeep(clonedState[key]);
+      const omitMap = omit && omit.length ? omit.reduce((acc, key) => ({ ...acc, [key]: true }), {}) : null;
+      const pickMap = pick && pick.length ? pick.reduce((acc, key) => ({ ...acc, [key]: true }), {}) : null;
+
+      const clonedState = {};
+      Object.keys(simulator.state).forEach(key => {
+        if (pickMap && !pickMap[key]) {
+          return;
+        }
+        if (omitMap && omitMap[key]) {
+          return;
+        }
+        clonedState[key] = structuredClone(simulator.state[key]);
       });
 
-      return clonedState;
+      return clonedState as Omit<Pick<Simulator['state'], TPick>, TOmit>;
     },
     getStepCached: (key: string, getter: () => any) => {
       simulator.stepCache[key] = (key in simulator.stepCache) ? simulator.stepCache[key] : getter();
@@ -104,47 +116,6 @@ export const createSimulator = (
     getGenerationCached: (key: string, getter: () => any) => {
       simulator.generationCache[key] = (key in simulator.generationCache) ? simulator.generationCache[key] : getter();
       return simulator.generationCache[key];
-    },
-    simulateStep: () => {
-      // stats
-      let creaturesNumber = 0;
-      let creaturesWithEnergy = 0;
-
-      let creatureIndex = 1;
-      // there are no neurons with id = 0, so we assume that index with sourceId = 0 is just empty
-      while (genomes.sourceId[creatureIndex * config.genomeLength] && creatureIndex <= config.populationLimit) {
-        creaturesNumber++;
-        if (creaturesData.energy[creatureIndex] <= 0) {
-          return;
-        }
-        creaturesWithEnergy++;
-
-        creaturesData.energy[creatureIndex] -= config.stepEnergyCost;
-        const inputValues = sensorsData(creatureIndex, config, simulator);
-        const outputValues = calculateGraph(creatureIndex, inputValues, simulator);
-
-        Object.entries(outputValues).forEach(([neuronId, outputValue]) => {
-          const outputNeuron = simulator.neurons.neuronMap[neuronId];
-          outputNeuron.act(outputValue, creatureIndex, config, simulator);
-        });
-
-        creatureIndex++;
-      }
-      simulator.generationsHistory[simulator.state.generation] =
-        simulator.generationsHistory[simulator.state.generation] || {
-          stepHistory: [],
-        };
-
-      simulator.generationsHistory[simulator.state.generation].stepHistory[simulator.state.step] = {
-        creaturesNumber,
-        creaturesWithEnergy,
-        state: simulator.state.step % config.stepLogFrequency
-          ? null
-          : simulator.cloneState({ omit: ['genomes', 'lastGenomes'] }),
-      };
-
-      simulator.state.step++;
-      simulator.stepCache = {};
     },
     moveCreature: (creatureIndex: number, x: number, y: number) => {
       const currentX = simulator.state.creaturesData.x[creatureIndex];
@@ -160,6 +131,13 @@ export const createSimulator = (
       //   return;
       // }
 
+      if (newWorldIndex === currentWorldIndex) {
+        return;
+      }
+
+      simulator.state.creaturesData.energy[creatureIndex] =
+        clamp(simulator.state.creaturesData.energy[creatureIndex] - config.moveEnergyCost, 0, config.maximumEnergy);
+
       simulator.state.creaturesData.x[creatureIndex] = newX;
       simulator.state.creaturesData.y[creatureIndex] = newY;
 
@@ -171,7 +149,7 @@ export const createSimulator = (
       const newCoordinateFoodIndex = simulator.state.world.food[newWorldIndex];
       if (newCoordinateFoodIndex) {
         const foodEnergy = simulator.state.foodData.energy[newCoordinateFoodIndex];
-        simulator.state.creaturesData.energy[creatureIndex] += foodEnergy;
+        simulator.state.creaturesData.energy[creatureIndex] += clamp(foodEnergy, 0, config.maximumEnergy);
 
         simulator.state.world.food[newWorldIndex] = 0;
         simulator.state.foodData.x[newCoordinateFoodIndex] = 0;
@@ -179,9 +157,81 @@ export const createSimulator = (
         simulator.state.foodData.energy[newCoordinateFoodIndex] = 0;
       }
     },
+    simulateStep: () => {
+      time('step');
+      // stats
+      let creaturesNumber = 0;
+      let creaturesWithEnergy = 0;
+      const timeStart = performance.now();
+
+      let creatureIndex = 1;
+      // there are no neurons with id = 0, so we assume that index with sourceId = 0 is just empty
+      while (creaturesData.alive[creatureIndex] && creatureIndex <= config.populationLimit) {
+        time('Step creature');
+        creaturesNumber++;
+        if (creaturesData.energy[creatureIndex] <= 0) {
+          // console.log('wat?', creatureIndex, creaturesData.energy[creatureIndex]);
+          creatureIndex++;
+
+          timeEnd('Step creature');
+          continue;
+        }
+        creaturesWithEnergy++;
+
+        creaturesData.energy[creatureIndex] =
+          clamp(creaturesData.energy[creatureIndex] - config.stepEnergyCost, 0, config.maximumEnergy);
+
+        time('Step 1');
+        const inputValues = sensorsData(creatureIndex, config, simulator);
+        timeEnd('Step 1');
+        time('Step 2');
+        const outputValues = calculateGraph(creatureIndex, inputValues, simulator);
+        timeEnd('Step 2');
+
+        time('Step 3');
+        Object.entries(outputValues).forEach(([neuronId, outputValue]) => {
+          const outputNeuron = simulator.neurons.neuronMap[parseInt(neuronId)];
+          outputNeuron.act(outputValue, creatureIndex, config, simulator);
+        });
+        timeEnd('Step 3');
+
+        timeEnd('Step creature');
+        creatureIndex++;
+      }
+      if (config.stepLogFrequency && !(simulator.state.step % config.stepLogFrequency)) {
+        time('Step 4');
+        simulator.generationsHistory[simulator.state.generation] =
+          simulator.generationsHistory[simulator.state.generation] || {
+            stepHistory: [],
+            timeStart: 0,
+            timeEnd: 0,
+            totalOffspring: 0,
+            creaturesNumber,
+            totalEnergy: 0,
+            state: simulator.cloneState({ pick: ['genomes', 'lastGenomes'] }),
+          };
+
+        simulator.generationsHistory[simulator.state.generation].stepHistory[simulator.state.step] = {
+          timeStart,
+          timeEnd: performance.now(),
+          creaturesNumber,
+          creaturesWithEnergy,
+          state: simulator.cloneState({ omit: ['genomes', 'lastGenomes'] }),
+        };
+        timeEnd('Step 4');
+      }
+
+
+      timeEnd('step');
+      simulator.state.step++;
+      simulator.stepCache = {};
+    },
+
     simulateGeneration: () => {
+      time('1');
       // stats
       let totalEnergy = 0;
+      const timeStart = performance.now();
 
       // simulating
       times(config.generationLength, (step) => {
@@ -189,32 +239,37 @@ export const createSimulator = (
           simulator.simulateStep();
         }
       });
+      timeEnd('1');
 
+      time('2');
       // moving creatures to "previous generation" storage
       copyDataStorage(simulator.state.genomes, simulator.state.lastGenomes);
       copyDataStorage(simulator.state.creaturesData, simulator.state.lastCreaturesData);
       copyDataStorage(simulator.state.world, simulator.state.lastWorld);
+      timeEnd('2');
 
+      time('3');
       // clearing up current generation to make room for next one
       clearDataStorage(simulator.state.genomes);
       clearDataStorage(simulator.state.creaturesData);
       clearDataStorage(simulator.state.world);
+      timeEnd('3');
 
+      time('4');
       let creatureIndex = 1;
       let newCreatureIndex = 1;
-      while (genomes.sourceId[creatureIndex * config.genomeLength] && creatureIndex <= config.populationLimit) {
-        totalEnergy += simulator.state.creaturesData.energy[creatureIndex];
+      while (simulator.state.lastCreaturesData.alive[creatureIndex] && creatureIndex <= config.populationLimit) {
+        totalEnergy += simulator.state.lastCreaturesData.energy[creatureIndex];
         const {
           reproductionProbability,
-        } = resultCondition(creatureIndex, config, simulator);
-
+        } = resultCondition(creatureIndex, simulator.state.lastCreaturesData, config, simulator);
         doWithProbability(reproductionProbability, () => {
           const numberOfOffspring = swich([
             [OFFSPRING_NUMBER_CALCULATION_TYPES.RANDOM, () =>
               randomInteger(config.minNumberOfOffspring, config.maxNumberOfOffspring)],
             [OFFSPRING_NUMBER_CALCULATION_TYPES.FROM_ENERGY, () =>
               mapNumberToDifferentRange(
-                clamp(simulator.state.creaturesData.energy[creatureIndex], 0, Math.floor(0.1 * MAX_16_BIT_INTEGER)),
+                clamp(simulator.state.lastCreaturesData.energy[creatureIndex], 0, Math.floor(0.1 * MAX_16_BIT_INTEGER)),
                 0,
                 Math.floor(0.1 * MAX_16_BIT_INTEGER),
                 config.minNumberOfOffspring,
@@ -223,6 +278,9 @@ export const createSimulator = (
           ])(config.offspringCalculationType);
 
           times(numberOfOffspring, () => {
+            if (newCreatureIndex > config.populationLimit) {
+              return;
+            }
             createCreature({
               index: newCreatureIndex++,
               parentIndex: creatureIndex,
@@ -236,8 +294,11 @@ export const createSimulator = (
             });
           });
         });
+        creatureIndex++;
       }
+      timeEnd('4');
 
+      time('5');
       // repopulating
       if (newCreatureIndex === 1 && config.repopulateWhenPopulationDiesOut) {
         iterateOverRange(1, config.populationLimit, (index) => {
@@ -254,19 +315,25 @@ export const createSimulator = (
           });
         })
       }
+      timeEnd('5');
 
+      time('6');
       // stats
-      simulator.generationsHistory[simulator.state.generation].totalOffspring = newCreatureIndex - 1;
-      simulator.generationsHistory[simulator.state.generation].creaturesNumber =
-        simulator.generationsHistory[simulator.state.generation].stepHistory[0].creaturesNumber;
-      simulator.generationsHistory[simulator.state.generation].totalEnergy = totalEnergy;
-      simulator.generationsHistory[simulator.state.generation].state = simulator.state.step % config.stepLogFrequency
-        ? null
-        : simulator.cloneState({ pick: ['genomes', 'lastGenomes'] });
+      if (config.generationLogFrequency && !(simulator.state.step % config.generationLogFrequency)) {
+        simulator.generationsHistory[simulator.state.generation].timeStart = timeStart;
+        simulator.generationsHistory[simulator.state.generation].timeEnd = performance.now();
+        simulator.generationsHistory[simulator.state.generation].totalOffspring = newCreatureIndex - 1;
+        simulator.generationsHistory[simulator.state.generation].creaturesNumber =
+          simulator.generationsHistory[simulator.state.generation].stepHistory[0].creaturesNumber;
+        simulator.generationsHistory[simulator.state.generation].totalEnergy = totalEnergy;
+        simulator.generationsHistory[simulator.state.generation].state =
+          simulator.cloneState({ pick: ['genomes', 'lastGenomes'] });
+      }
 
       simulator.generationCache = {};
       simulator.state.generation++;
       simulator.state.step = 0;
+      timeEnd('6');
     }
   };
 
@@ -275,11 +342,14 @@ export const createSimulator = (
 
 const sensorsData = (creatureIndex: number, config: Config, simulator: Simulator): InputValues => {
   const inputValues: InputValues = {};
+  // TODO calculate only valid input neurons (should be minor improvement)
   simulator.neurons.inputNeurons.forEach((inputNeuron) => {
+    time(`sensor ${inputNeuron.label}`);
     const { id, getValue } = inputNeuron;
     if (getValue) {
       inputValues[id] = getValue(creatureIndex, config, simulator);
     }
+    timeEnd(`sensor ${inputNeuron.label}`);
   });
 
   return inputValues;

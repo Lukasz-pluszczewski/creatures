@@ -11,7 +11,6 @@ import {
 } from './constants';
 
 
-import { createNumber } from './numberUtils';
 import { createArray } from './arrayUtils';
 import { findClosestFood } from './worldUtils';
 
@@ -89,7 +88,7 @@ export const generateNeurons = (config: Config): NeuronsData => {
         simulator.state.step / config.generationLength,
     },
   ].map((neuron, index) => {
-    const id = createNumber(MIN_INPUT_NEURON_ID + index, 8);
+    const id = MIN_INPUT_NEURON_ID + index;
     return {
       id,
       activation: x => x,
@@ -101,7 +100,7 @@ export const generateNeurons = (config: Config): NeuronsData => {
   const inputNeuronsIds = inputNeurons.map(({ id }) => id);
 
   const internalNeurons: Neuron[] = createArray(config.internalNeurons).map((__, index) => {
-    const id = createNumber(MIN_INTERNAL_NEURON_ID + index, 8);
+    const id = MIN_INTERNAL_NEURON_ID + index;
     return {
       id,
       label: `internal${index}[${id}]`,
@@ -132,7 +131,7 @@ export const generateNeurons = (config: Config): NeuronsData => {
       ])(),
     },
   ].map((neuron, index) => {
-    const id = createNumber(MIN_OUTPUT_NEURON_ID + index, 8);
+    const id = MIN_OUTPUT_NEURON_ID + index;
     return {
       id,
       activation: Tanh,
@@ -171,10 +170,21 @@ export const generateNeurons = (config: Config): NeuronsData => {
   });
   outputNeuronsIds.forEach(outputNeuronId => {
     internalNeuronsIds.forEach(internalNeuronId => {
+      possibleConnectionsFrom[internalNeuronId] = possibleConnectionsFrom[internalNeuronId] || [];
+
       possibleConnectionsFrom[internalNeuronId].push(outputNeuronId);
       possibleConnectionsTo[outputNeuronId] = internalNeuronId;
     });
   });
+
+
+  let el;
+  if (el = Object.keys(possibleConnectionsFrom).find(el => !possibleConnectionsFrom[el])) {
+    console.log('No connections from', el);
+  }
+  if (el = Object.keys(possibleConnectionsTo).find(el => !possibleConnectionsTo[el])) {
+    console.log('No connections to', el);
+  }
 
   return {
     inputNeurons,
