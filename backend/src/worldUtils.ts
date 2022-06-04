@@ -1,74 +1,79 @@
 import { Config } from './config';
-import { Creature, Food, World } from './types';
-import { createArray } from './arrayUtils';
+import { FoodData, WorldData } from './types';
+import { getIndexFromCoordinates, iterateOverRange } from './arrayUtils';
+import { time, timeEnd } from './debugUtils';
 
-export const createEmptyWorld = (config: Config): World => {
-  return createArray(config.worldSizeX + 1).map(() => createArray(config.worldSizeY + 1).map(() => ({
-    creatureId: null,
-    food: null,
-  })));
+
+// Return list of coordinates around the point with horizontal and vertical distance of "level" from "index"
+export const getLevel = (x: number, y: number, level: number, width: number, height: number) => {
+  let iterationsCounter = 0;
+  const yTooLarge = y + level > height - 1;
+  const yTooSmall = y - level < 0;
+  const xTooLarge = x + level > width - 1;
+  const xTooSmall = x - level < 0;
+
+  const results: [number, number][] = [];
+  iterateOverRange(x - level, x + level, (currentX) => {
+    iterationsCounter++;
+    if (currentX < 0 || currentX > width - 1) {
+      return;
+    }
+
+    if (!yTooLarge) {
+      // results.push(getIndexFromCoordinates(currentX, y + level, width));
+      results.push([currentX, y + level]);
+    }
+    if (!yTooSmall) {
+      // results.push(getIndexFromCoordinates(currentX, y - level, width));
+      results.push([currentX, y - level]);
+    }
+  });
+
+  iterateOverRange(y - level + 1, y + level - 1, (currentY) => {
+    iterationsCounter++;
+    if (currentY < 0 || currentY > width - 1) {
+      return;
+    }
+    if (!xTooLarge) {
+      // results.push(getIndexFromCoordinates(x + level, currentY, width));
+      results.push([x + level, currentY]);
+    }
+
+    if (!xTooSmall) {
+      // results.push(getIndexFromCoordinates(x - level, currentY, width));
+      results.push([x - level, currentY]);
+    }
+  });
+
+  return results;
 };
 
-export const addCreature = (world: World, creature: Creature) => {
-  if (world[creature.x][creature.y] !== null) {
-    throw new Error('Cannot add creature to occupied cell');
+
+export const findClosestFood = (x, y, world: WorldData, foodData: FoodData, config: Config) => {
+  let level = 1;
+  time('findClosestFood 1');
+  let coordinatesAround = getLevel(x, y, level, config.worldSizeX, config.worldSizeY);
+  timeEnd('findClosestFood 1');
+  let closestFoodIndex: number = null;
+  time('findClosestFood while');
+  while (coordinatesAround.length && !closestFoodIndex) {
+    time('findClosestFood 2');
+    coordinatesAround.forEach(([x, y]) => {
+      const foodIndex = world.food[getIndexFromCoordinates(x, y, config.worldSizeX)];
+      if (foodIndex) {
+        closestFoodIndex = foodIndex;
+      }
+    });
+
+    timeEnd('findClosestFood 2');
+
+    // time('getLevel ' + level + 1);
+    coordinatesAround = ++level <= config.foodSensorRange
+      ? getLevel(x, y, level, config.worldSizeX, config.worldSizeY)
+      : [];
+    // timeEnd('getLevel ' + level);
   }
-  world[creature.x][creature.y].creatureId = creature.id;
+  timeEnd('findClosestFood while');
 
-  return world;
+  return closestFoodIndex;
 };
-
-export const removeCreature = (world: World, creature: Creature) => {
-  world[creature.x][creature.y].creatureId = null;
-
-  return world;
-};
-
-export const getCreature = (world: World, x, y) => {
-  return world[x][y].creatureId;
-};
-
-export const getFood = (world: World, x, y) => {
-  return world[x][y].food;
-};
-
-export const removeFood = (world: World, x, y) => {
-  world[x][y].food = null;
-}
-
-export const populateWorldWithFood = (world: World, foodDensity: number, foodNutrition: number) => {
-  world.forEach((row, x) => row.forEach((cell, y) =>{
-    if (Math.random() < foodDensity) {
-      cell.food = Math.random() * foodNutrition;
-    }
-  }));
-
-  return world;
-};
-
-export const getAllFood = (world: World) => {
-  const food: { x: number, y: number, value: number }[] = [];
-  world.forEach((row, x) => row.forEach((cell, y) =>{
-    if (cell.food) {
-      food.push({ x, y, value: cell.food });
-    }
-  }));
-
-  return food;
-};
-
-export const findClosestFood = (world: World, x, y) => {
-  const food = getAllFood(world);
-  if (food.length === 0) {
-    return { food: null, distance: 99999999999 };
-  }
-  const closestFood = food.reduce<{ food: Food | null, distance: number }>((closest, curr) => {
-    const distance = Math.sqrt(Math.pow(x - curr.x, 2) + Math.pow(y - curr.y, 2));
-    if (distance < closest.distance) {
-      return { food: curr, distance };
-    }
-    return closest;
-  }, { food: null, distance: 99999999999 });
-
-  return closestFood;
-}

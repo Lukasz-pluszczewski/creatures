@@ -1,242 +1,396 @@
-import { Config } from './config';
+import swich from 'swich';
+import cloneDeep from 'lodash.clonedeep';
 
-import { createArray, times } from './arrayUtils';
+import { MAX_16_BIT_INTEGER, OFFSPRING_NUMBER_CALCULATION_TYPES } from './constants';
+
+import { iterateOverRange, times } from './arrayUtils';
 import { calculateGraph } from './graphUtils';
 import { createCreature } from './creatureUtils';
+import { clamp, mapNumberToDifferentRange, randomInteger } from './numberUtils';
+import { clearDataStorage, copyDataStorage, createFoodDataStorage, createPopulationDataStorage } from './memoryUtils';
+import { doWithProbability } from './probabilityUtils';
 
-import { Creature, InputValues, Neuron, SimulationNeurons, SimulationStats, Simulator, World } from './types';
-import { clamp } from './numberUtils';
+import { genomeValidator, time, timeEnd } from './debugUtils';
+
+import { Config } from './config';
 import {
-  createEmptyWorld,
-  getAllFood,
-  getFood,
-  populateWorldWithFood,
-  removeFood
-} from './worldUtils';
-
+  InputValues,
+  NeuronsData,
+  Simulator,
+  WorldData
+} from './types';
+import { growFood, regrowFood } from './foodUtils';
 
 export const createSimulator = (
   config: Config,
-  neurons: SimulationNeurons,
-  resultCondition: (creature: Creature, config: Config, creatures: Creature[]) =>
-    ({ survivalProbability: number, reproductionProbability: number }),
-) => {
-  const {
-  } = config;
+  neurons: NeuronsData,
+  resultCondition: Simulator['resultCondition']
+): Simulator => {
+  // creating storage for creatures data
+  const { genomes, creaturesData } = createPopulationDataStorage(config, neurons);
+  const { genomes: lastGenomes, creaturesData: lastCreaturesData } = createPopulationDataStorage(config, neurons);
 
-  const generationLength = createArray(config.generationLength);
+  // creating storage for food data
+  const foodData = createFoodDataStorage(config);
 
-  const simulator: Partial<Simulator> = {
-    config,
+  // creating world data with creatures and food positions
+  const world: WorldData = {
+    creatures: new Uint16Array(config.worldSizeX * config.worldSizeY),
+    food: new Uint16Array(config.worldSizeX * config.worldSizeY),
+  };
+  const lastWorld: WorldData = {
+    creatures: new Uint16Array(config.worldSizeX * config.worldSizeY),
+    food: new Uint16Array(config.worldSizeX * config.worldSizeY),
+  }
+
+  // creating creatures
+  iterateOverRange(1, config.population, index => {
+    createCreature({
+      index,
+      parentIndex: null,
+      genomes,
+      creaturesData,
+      lastGenomes,
+      lastCreaturesData,
+      world,
+      neurons,
+      config,
+    })
+  });
+
+  // creating food
+  const maxFoodIndex = growFood(foodData, world, config);
+
+  const simulator: Simulator = {
     neurons,
-    step: 0,
-    generation: 0,
-    history: [],
-    lastGenerationCreatures: [],
-    lastGenerationSteps: [],
-    world: createEmptyWorld(config),
+    config,
+    resultCondition,
+    generationsHistory: [],
     stepCache: {},
-  };
+    generationCache: {},
+    state: {
+      genomes,
+      creaturesData,
+      world,
+      lastGenomes,
+      lastCreaturesData,
+      lastWorld,
+      foodData,
+      maxFoodIndex,
+      numberOfFood: maxFoodIndex,
+      generation: 0,
+      step: 0,
+    },
+    cloneState: <
+      TOmit extends keyof Simulator['state'] = never,
+      TPick extends keyof Simulator['state'] = keyof Simulator['state']
+    >({ omit, pick }: { omit?: TOmit[], pick?: TPick[] } = {}): Omit<Pick<Simulator['state'], TPick>, TOmit> => {
+      const omitMap = omit && omit.length ? omit.reduce((acc, key) => ({ ...acc, [key]: true }), {}) : null;
+      const pickMap = pick && pick.length ? pick.reduce((acc, key) => ({ ...acc, [key]: true }), {}) : null;
 
-  simulator.world = populateWorldWithFood(simulator.world, config.foodDensity, config.foodNutrition);
+      const clonedState = {};
+      Object.keys(simulator.state).forEach(key => {
+        if (pickMap && !pickMap[key]) {
+          return;
+        }
+        if (omitMap && omitMap[key]) {
+          return;
+        }
+        clonedState[key] = structuredClone(simulator.state[key]);
+      });
 
-  simulator.creatures = createArray(config.population).map(() => createCreature(
-    neurons,
-    config,
-  ));
+      return clonedState as Omit<Pick<Simulator['state'], TPick>, TOmit>;
+    },
+    getStepCached: (key: string, getter: () => any) => {
+      simulator.stepCache[key] = (key in simulator.stepCache) ? simulator.stepCache[key] : getter();
+      return simulator.stepCache[key];
+    },
+    getGenerationCached: (key: string, getter: () => any) => {
+      simulator.generationCache[key] = (key in simulator.generationCache) ? simulator.generationCache[key] : getter();
+      return simulator.generationCache[key];
+    },
+    moveCreature: (creatureIndex: number, x: number, y: number) => {
+      const currentX = simulator.state.creaturesData.x[creatureIndex];
+      const currentY = simulator.state.creaturesData.y[creatureIndex];
+      const currentWorldIndex = currentY * config.worldSizeX + currentX;
 
-  simulator.moveCreature = (creature: Creature, deltaX: number, deltaY: number) => {
-    let newX = creature.x;
-    let newY = creature.y;
-    if (deltaX > 0 && creature.x < config.worldSizeX) {
-      newX = creature.x + deltaX;
-    }
-    if (deltaX < 0 && creature.x > 0) {
-      newX = creature.x + deltaX;
-    }
-    if (deltaY > 0 && creature.y < config.worldSizeY) {
-      newY = creature.y + deltaY;
-    }
-    if (deltaY < 0 && creature.y > 0) {
-      newY = creature.y + deltaY;
-    }
-    // if (getCreature(simulator.world, newX, newY)) {
-    //   if (!getCreature(simulator.world, creature.x, newY)) {
-    //     newX = creature.x;
-    //   } else if (!getCreature(simulator.world, newX, creature.y)) {
-    //     newY = creature.y;
-    //   } else {
-    //     newX = creature.x;
-    //     newY = creature.y;
-    //   }
-    // }
-    // removeCreature(simulator.world, creature);
-    creature.x = newX;
-    creature.y = newY;
-    // addCreature(simulator.world, creature);
+      const newX = clamp(currentX + x, 0, config.worldSizeX - 1);
+      const newY = clamp(currentY + y, 0, config.worldSizeY - 1);
+      const newWorldIndex = newY * config.worldSizeX + newX;
 
-    const food = getFood(simulator.world, creature.x, creature.y);
-    if (food) {
-      creature.creatureState.energy += food;
-      removeFood(simulator.world, creature.x, creature.y);
-    }
+      // in the future we will prevent two creatures from being in the same coordinates
+      // if (simulator.state.world.creatures[newWorldIndex]) {
+      //   return;
+      // }
 
-    creature.creatureState.energy -= config.moveEnergyCost;
-  };
-
-  simulator.simulateStep = () => {
-    const creaturesInStep = [];
-    simulator.creatures.forEach(creature => {
-      if (creature.creatureState.energy <= 0) {
+      if (newWorldIndex === currentWorldIndex) {
         return;
       }
-      creature.creatureState.energy -= config.stepEnergyCost;
-      const inputValues = sensorsData(creature, config, simulator as Simulator);
-      const outputValues = calculateGraph(inputValues, creature.parsedGenome, simulator.neurons, creature.validNeurons);
 
-      Object.entries(outputValues).forEach(([neuronId, outputValue]) => {
-        const outputNeuron = simulator.neurons.neuronMap[neuronId];
-        outputNeuron.act(outputValue, creature, config, simulator);
-      });
+      simulator.state.creaturesData.energy[creatureIndex] =
+        clamp(simulator.state.creaturesData.energy[creatureIndex] - config.moveEnergyCost, 0, config.maximumEnergy);
 
-      creaturesInStep.push({ id: creature.id, x: creature.x, y: creature.y, energy: creature.creatureState.energy });
-    });
-    simulator.lastGenerationSteps.push({ creatures: creaturesInStep, food: getAllFood(simulator.world) });
-    simulator.step++;
-    simulator.stepCache = {};
-  };
+      simulator.state.creaturesData.x[creatureIndex] = newX;
+      simulator.state.creaturesData.y[creatureIndex] = newY;
 
-  simulator.simulateGeneration = () => {
-    simulator.lastGenerationCreatures = simulator.creatures;
-    simulator.lastGenerationSteps = [];
-
-    // stats
-    const populationInGeneration = simulator.creatures.length;
-    let totalEnergy = 0;
-    let totalOffspring = 0;
-
-    // simulating
-    generationLength.forEach((__, step) => {
-      if (simulator.step <= step) {
-        simulator.simulateStep();
+      simulator.state.world.creatures[newWorldIndex] = creatureIndex;
+      if (simulator.state.world.creatures[currentWorldIndex] === creatureIndex) {
+        simulator.state.world.creatures[currentWorldIndex] = 0;
       }
-    });
 
+      const newCoordinateFoodIndex = simulator.state.world.food[newWorldIndex];
+      if (newCoordinateFoodIndex) {
+        const foodEnergy = simulator.state.foodData.energy[newCoordinateFoodIndex];
+        simulator.state.creaturesData.energy[creatureIndex] = clamp(
+          foodEnergy + simulator.state.creaturesData.energy[creatureIndex],
+          0,
+          config.maximumEnergy
+        );
 
+        // simulator.state.world.food[newWorldIndex] = 0;
+        // simulator.state.foodData.x[newCoordinateFoodIndex] = 0;
+        // simulator.state.foodData.y[newCoordinateFoodIndex] = 0;
+        simulator.state.foodData.energy[newCoordinateFoodIndex] = 0;
 
-    // calculating result and killing
-    const creaturesThatReproduced = [];
-    const newPopulation: Creature[] = [];
-    simulator.creatures.forEach(creature => {
-      totalEnergy += creature.creatureState.energy;
-      const {
-        reproductionProbability,
-      } = resultCondition(creature, config, simulator.creatures);
-
-      if (reproductionProbability > Math.random()) {
-        creaturesThatReproduced.push(creature);
+        simulator.state.numberOfFood--;
       }
-    });
+    },
+    simulateStep: (generationStepLoggingEnabled = true) => {
+      time('step');
+      time('step stats');
+      // stats
+      let creaturesNumber = 0;
+      let creaturesWithEnergy = 0;
+      const timeStart = performance.now();
+      timeEnd('step stats');
 
-    // reproducing
+      time('step creatures');
+      let creatureIndex = 1;
+      // there are no neurons with id = 0, so we assume that index with sourceId = 0 is just empty
+      while (creaturesData.alive[creatureIndex] && creatureIndex <= config.populationLimit + 1) {
+        creaturesNumber++;
+        if (creaturesData.energy[creatureIndex] <= 0) {
+          // console.log('wat?', creatureIndex, creaturesData.energy[creatureIndex]);
+          creatureIndex++;
 
-    // conventional reproduction where number of offspring depends on the general population
-    // creaturesThatReproduced.forEach(creature => {
-    //   const numberOfOffspring = clamp(
-    //     Math.floor(config.population / creaturesThatReproduced.length),
-    //     config.minNumberOfOffspring,
-    //     config.maxNumberOfOffspring
-    //   );
-    //   times(numberOfOffspring, () => {
-    //     if (newPopulation.length < config.populationLimit) {
-    //       newPopulation.push(createCreature(
-    //         neurons,
-    //         config,
-    //         creature,
-    //       ));
-    //     }
-    //   });
-    // });
+          continue;
+        }
+        time('Step creature');
+        creaturesWithEnergy++;
 
-    // energy based reproduction
-    creaturesThatReproduced.forEach(creature => {
-      const inputValues = sensorsData(creature, config, simulator as Simulator);
-      const outputValues = calculateGraph(inputValues, creature.parsedGenome, simulator.neurons, creature.validNeurons);
+        creaturesData.energy[creatureIndex] =
+          clamp(creaturesData.energy[creatureIndex] - config.stepEnergyCost, 0, config.maximumEnergy);
 
-      const reproduceValue = outputValues[neurons.reproduceNeuronId];
-      const numberOfOffspring = clamp(Math.ceil(reproduceValue), 1, config.maxNumberOfOffspring);
-      times(numberOfOffspring, () => {
-        if (newPopulation.length < config.populationLimit) {
-          totalOffspring++;
-          newPopulation.push(createCreature(
-            neurons,
-            config,
-            creature,
-            // creature.energy / numberOfOffspring,
-            // creature.energy,
-          ));
+        time('Step 1');
+        const inputValues = sensorsData(creatureIndex, config, simulator);
+        timeEnd('Step 1');
+        time('Step 2');
+        const outputValues = calculateGraph(creatureIndex, inputValues, simulator);
+        timeEnd('Step 2');
+
+        time('Step 3');
+        Object.entries(outputValues).forEach(([neuronId, outputValue]) => {
+          const outputNeuron = simulator.neurons.neuronMap[parseInt(neuronId)];
+          outputNeuron.act(outputValue, creatureIndex, config, simulator);
+        });
+        timeEnd('Step 3');
+
+        timeEnd('Step creature');
+        creatureIndex++;
+      }
+      timeEnd('step creatures');
+      time('Step 4');
+      simulator.generationsHistory[simulator.state.generation] =
+        simulator.generationsHistory[simulator.state.generation] || {
+          stepHistory: [],
+          timeStart: 0,
+          timeEnd: 0,
+          totalOffspring: 0,
+          creaturesNumber,
+          totalEnergy: 0,
+          state: config.generationGenomeLogFrequency && !(simulator.state.generation % config.generationGenomeLogFrequency)
+            ? simulator.cloneState({ pick: ['genomes', 'lastGenomes', 'creaturesData'] })
+            : null,
+        };
+
+      const logStepState = generationStepLoggingEnabled && config.stepLogFrequency && !(simulator.state.step % config.stepLogFrequency);
+      simulator.generationsHistory[simulator.state.generation].stepHistory[simulator.state.step] = {
+        timeStart,
+        timeEnd: performance.now(),
+        creaturesNumber,
+        creaturesWithEnergy,
+        state: !simulator.state.step || logStepState
+          ? simulator.cloneState({ omit: ['genomes', 'lastGenomes'] })
+          : null,
+      };
+      timeEnd('Step 4');
+
+      time('step 5');
+      if (simulator.state.numberOfFood < config.foodRegrowLimit) {
+        simulator.state.numberOfFood += regrowFood(foodData, world, config, simulator.state.maxFoodIndex);
+      }
+      timeEnd('step 5');
+
+
+      timeEnd('step');
+      simulator.state.step++;
+      simulator.stepCache = {};
+    },
+
+    simulateGeneration: () => {
+      time('1');
+      // stats
+      let totalEnergy = 0;
+      const timeStart = performance.now();
+      const logGenerationState = config.generationGenomeLogFrequency && !(simulator.state.generation % config.generationGenomeLogFrequency);
+      const clonedState = !simulator.state.generation || logGenerationState
+        ? simulator.cloneState({ pick: ['genomes', 'lastGenomes', 'creaturesData'] })
+        : null;
+      timeEnd('1');
+
+      time('1.5');
+      // simulating
+      const logGenerationSteps = config.generationStepsLogFrequency && !(simulator.state.generation % config.generationStepsLogFrequency);
+      times(config.generationLength, (step) => {
+        if (simulator.state.step <= step) {
+          simulator.simulateStep(!simulator.state.generation || logGenerationSteps);
         }
       });
-    });
+      timeEnd('1.5');
 
+      time('2');
+      // moving creatures to "previous generation" storage
+      copyDataStorage(simulator.state.genomes, simulator.state.lastGenomes);
+      copyDataStorage(simulator.state.creaturesData, simulator.state.lastCreaturesData);
+      copyDataStorage(simulator.state.world, simulator.state.lastWorld);
+      timeEnd('2');
 
-    // creating random creatures to keep the population size in each simulation step constant
-    if (config.keepPopulationConstant) {
-      times(config.population - newPopulation.length, () => {
-        newPopulation.push(createCreature(
-          neurons,
-          config,
-        ));
-      });
-    }
-    if (!newPopulation.length && config.repopulateWhenPopulationDiesOut) {
-      times(config.population, () => {
-        newPopulation.push(createCreature(
-          neurons,
-          config,
-        ));
-      });
-    }
-    simulator.creatures = newPopulation;
+      time('3');
+      // clearing up current generation to make room for next one
+      clearDataStorage(simulator.state.genomes);
+      clearDataStorage(simulator.state.creaturesData);
+      clearDataStorage(simulator.state.world);
+      clearDataStorage(simulator.state.foodData);
+      timeEnd('3');
 
+      time('4');
+      let creatureIndex = 1;
+      let newCreatureIndex = 1;
+      let numberOfCreaturesWithOffspring = 0;
+      while (simulator.state.lastCreaturesData.alive[creatureIndex] && creatureIndex <= config.populationLimit + 1) {
+        totalEnergy += simulator.state.lastCreaturesData.energy[creatureIndex];
+        const {
+          reproductionProbability,
+        } = resultCondition(creatureIndex, simulator.state.lastCreaturesData, config, simulator);
 
-    const stats: SimulationStats = {
-      step: simulator.step,
-      generation: simulator.generation,
-      populationInGeneration,
-      reproduced: creaturesThatReproduced.length,
-      averageEnergy: totalEnergy / populationInGeneration,
-      averageOffspring: totalOffspring / creaturesThatReproduced.length,
-    };
-    simulator.history.push(stats);
+        doWithProbability(reproductionProbability, () => {
+          const numberOfOffspring = swich([
+            [OFFSPRING_NUMBER_CALCULATION_TYPES.RANDOM, () =>
+              randomInteger(config.minNumberOfOffspring, config.maxNumberOfOffspring)],
+            [OFFSPRING_NUMBER_CALCULATION_TYPES.FROM_ENERGY, () =>
+              mapNumberToDifferentRange(
+                clamp(simulator.state.lastCreaturesData.energy[creatureIndex], 0, config.maximumEnergy),
+                0,
+                config.maximumEnergy,
+                config.minNumberOfOffspring,
+                config.maxNumberOfOffspring,
+              )],
+          ])(config.offspringCalculationType);
+          if (numberOfOffspring) {
+            numberOfCreaturesWithOffspring++;
+          }
 
-    simulator.generation++;
-    simulator.step = 0;
+          times(numberOfOffspring, () => {
+            if (newCreatureIndex > config.populationLimit) {
+              return;
+            }
+            createCreature({
+              index: newCreatureIndex++,
+              parentIndex: creatureIndex,
+              genomes,
+              creaturesData,
+              lastGenomes,
+              lastCreaturesData,
+              world,
+              neurons,
+              config,
+            });
+          });
+        });
+        creatureIndex++;
+      }
+      timeEnd('4');
 
-    // regrowing food
-    if (getAllFood(simulator.world).length < config.foodLimit) {
-      simulator.world = populateWorldWithFood(simulator.world, config.foodDensity, config.foodNutrition);
+      time('5');
+      simulator.state.maxFoodIndex = simulator.state.numberOfFood = growFood(foodData, world, config);
+      timeEnd('5');
+
+      time('6');
+      // repopulating
+      if (newCreatureIndex === 1 && config.repopulateWhenPopulationDiesOut) {
+        iterateOverRange(1, config.population, (index) => {
+          createCreature({
+            index,
+            parentIndex: null,
+            genomes,
+            creaturesData,
+            lastGenomes,
+            lastCreaturesData,
+            world,
+            neurons,
+            config,
+          });
+        })
+      }
+      timeEnd('6');
+      genomeValidator(simulator.state.creaturesData, simulator.state.genomes, simulator.config);
+
+      time('7');
+      // stats
+
+      simulator.generationsHistory[simulator.state.generation].timeStart = timeStart;
+      simulator.generationsHistory[simulator.state.generation].timeEnd = performance.now();
+      simulator.generationsHistory[simulator.state.generation].totalOffspring = newCreatureIndex - 1;
+      simulator.generationsHistory[simulator.state.generation].numberOfCreaturesWithOffspring = numberOfCreaturesWithOffspring - 1;
+      simulator.generationsHistory[simulator.state.generation].creaturesNumber =
+        simulator.generationsHistory[simulator.state.generation].stepHistory[0].creaturesNumber;
+      simulator.generationsHistory[simulator.state.generation].totalEnergy = totalEnergy;
+      simulator.generationsHistory[simulator.state.generation].state = clonedState;
+
+      if (logGenerationState) {
+        genomeValidator(
+          simulator.generationsHistory[simulator.state.generation].state.creaturesData,
+          simulator.generationsHistory[simulator.state.generation].state.genomes,
+          simulator.config,
+        );
+      }
+
+      simulator.generationCache = {};
+      simulator.state.generation++;
+      simulator.state.step = 0;
+
+      timeEnd('7');
+      if (newCreatureIndex === 1 && !config.repopulateWhenPopulationDiesOut) {
+        return false;
+      }
+      return true;
     }
   };
 
-  simulator.getStepCached = (key: string, getter: () => any) => {
-    simulator.stepCache[key] = (key in simulator.stepCache) ? simulator.stepCache[key] : getter();
-    return simulator.stepCache[key];
-  };
-
-  return simulator as Simulator;
+  return simulator;
 };
 
-const sensorsData = (creature: Creature, config: Config, simulator: Simulator): InputValues => {
+const sensorsData = (creatureIndex: number, config: Config, simulator: Simulator): InputValues => {
   const inputValues: InputValues = {};
+  // TODO calculate only valid input neurons (should be minor improvement)
   simulator.neurons.inputNeurons.forEach((inputNeuron) => {
+    // time(`sensor ${inputNeuron.label}`);
     const { id, getValue } = inputNeuron;
     if (getValue) {
-      const sensorValue = getValue(creature, config, simulator);
-      inputValues[id] = sensorValue;
+      inputValues[id] = getValue(creatureIndex, config, simulator);
     }
+    // timeEnd(`sensor ${inputNeuron.label}`);
   });
 
   return inputValues;
 };
-
