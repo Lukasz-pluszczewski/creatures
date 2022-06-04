@@ -36,12 +36,16 @@ const getCreaturesData = (step) => {
 };
 
 const getFoodData = (step) => {
-  return step.foodData.map(({ x, y }, index) => ({
-    x: x,
-    y: y,
-    foodIndex: index,
-    color: '#00ff00',
-  }));
+  return step.foodData.map(({ x, y, energy }, index) => (
+    energy
+      ? {
+          x: x,
+          y: y,
+          foodIndex: index,
+          color: '#00ff00',
+        }
+      : null
+  )).filter(food => food);
 };
 
 export const World = ({

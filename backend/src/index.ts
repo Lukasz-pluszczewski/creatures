@@ -3,7 +3,7 @@ import { Config, config } from './config';
 import { generateNeurons } from './neuronsUtils';
 import { createSimulator } from './simulator';
 import { CreaturesData, Simulator } from './types';
-import { createArray } from './arrayUtils';
+import { times } from './arrayUtils';
 import { clamp, mapNumberToDifferentRange } from './numberUtils';
 import { getCreaturesDataView, getFoodDataView, getGenomesView } from './objectUtils';
 import { analyzeCreatures, genomeValidator, worldDataValidator } from './debugUtils';
@@ -95,6 +95,27 @@ const newSimulator = () => {
 };
 newSimulator();
 
+const simulateGenerations = (number: number) => {
+  let timeStart = performance.now();
+  let lastTime = timeStart;
+  let lastIndex = 0;
+  console.time(`Simulated ${number} generations`);
+  times(number, index => {
+    const now = performance.now();
+    if (now - lastTime > 10000) {
+      console.log(`Simulated ${index} generations in ${(now - lastTime).toFixed(2)}ms (${((index - lastIndex) * 1000 / (now - lastTime)).toFixed(2)} per second; total: ${(now - timeStart).toFixed(2)}ms)`);
+      lastTime = now;
+      lastIndex = index;
+    }
+    console.log('Generation', index);
+    return simulator.simulateGeneration();
+  });
+  console.timeEnd(`Simulated ${number} generations`);
+  console.log(`(ave: ${(number * 1000 / (performance.now() - timeStart)).toFixed(2)} per second)`);
+};
+
+simulateGenerations(1000);
+
 simpleExpress({
   port: 8080,
   routes: [
@@ -146,7 +167,7 @@ simpleExpress({
     }],
     ['/generation', {
       post: () => {
-        simulator.simulateGeneration();
+        simulateGenerations(1);
         return {
           status: 200,
           body: { message: 'OK' },
@@ -155,23 +176,7 @@ simpleExpress({
     }],
     ['/generation/:number', {
       post: ({ params: { number } }) => {
-        let timeStart = performance.now();
-        let lastTime = timeStart;
-        let lastIndex = 0;
-        console.time(`Simulated ${number} generations`);
-        createArray(parseInt(number)).every((__, index) => {
-          const now = performance.now();
-          if (now - lastTime > 10000) {
-            console.log(`Simulated ${index} generations in ${(now - lastTime).toFixed(2)}ms (${((index - lastIndex) * 1000 / (now - lastTime)).toFixed(2)} per second)`);
-            lastTime = now;
-            lastIndex = index;
-          }
-          console.log('Generation', index);
-          return simulator.simulateGeneration();
-        });
-        console.timeEnd(`Simulated ${number} generations`);
-        console.log(`(ave: ${(number * 1000 / (performance.now() - timeStart)).toFixed(2)} per second)`);
-
+        simulateGenerations(parseInt(number, 10));
         return {
           status: 200,
           body: { message: 'OK' },

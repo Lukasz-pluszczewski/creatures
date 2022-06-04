@@ -29,7 +29,10 @@ export const NeuronVisualization = ({ genome, neurons, config }) => {
     ]);
 
     const edges = new vis.DataSet(genome.map(gene => {
-      const { sourceId, targetId, weight: rawWeight } = gene;
+      const { sourceId, targetId, weight: rawWeight, validConnection } = gene;
+      if (!validConnection) {
+        return null;
+      }
       const weight = rawWeight * weightMultiplier;
       return {
         from: sourceId,
@@ -38,7 +41,7 @@ export const NeuronVisualization = ({ genome, neurons, config }) => {
         label: `${weight.toFixed(2)}`,
         color: weight > 0 ? '#00FF00' : '#FF0000',
       };
-    }));
+    }).filter(edge => edge));
 
     // create a network
     const networkData = {

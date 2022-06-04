@@ -322,7 +322,7 @@ export const createSimulator = (
       timeEnd('4');
 
       time('5');
-      simulator.state.maxFoodIndex = growFood(foodData, world, config);
+      simulator.state.maxFoodIndex = simulator.state.numberOfFood = growFood(foodData, world, config);
       timeEnd('5');
 
       time('6');
@@ -357,11 +357,13 @@ export const createSimulator = (
       simulator.generationsHistory[simulator.state.generation].totalEnergy = totalEnergy;
       simulator.generationsHistory[simulator.state.generation].state = clonedState;
 
-      genomeValidator(
-        simulator.generationsHistory[simulator.state.generation].state.creaturesData,
-        simulator.generationsHistory[simulator.state.generation].state.genomes,
-        simulator.config,
-      )
+      if (logGenerationState) {
+        genomeValidator(
+          simulator.generationsHistory[simulator.state.generation].state.creaturesData,
+          simulator.generationsHistory[simulator.state.generation].state.genomes,
+          simulator.config,
+        );
+      }
 
       simulator.generationCache = {};
       simulator.state.generation++;
