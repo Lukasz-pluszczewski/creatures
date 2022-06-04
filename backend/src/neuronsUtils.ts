@@ -18,36 +18,6 @@ import type { Config } from './config';
 import type { Neuron, NeuronsData, Simulator } from './types';
 import { randomSign } from './numberUtils';
 
-/**
- * Input neurons (10):
- *   1: bias[1]
- *   2: northWallDistance[2]
- *   3: eastWallDistance[3]
- *   4: southWallDistance[4]
- *   5: westWallDistance[5]
- *   6: closestFoodHorizontalDistance[6]
- *   7: closestFoodVerticalDistance[7]
- *   8: energy[8]
- *   9: age[9]
- *   10: random[10]
- * Internal neurons (10):
- *   128: internal0[128]
- *   129: internal1[129]
- *   130: internal2[130]
- *   131: internal3[131]
- *   132: internal4[132]
- *   133: internal5[133]
- *   134: internal6[134]
- *   135: internal7[135]
- *   136: internal8[136]
- *   137: internal9[137]
- * Output neurons (3):
- *   64: reproduce[64]
- *   65: moveHorizontal[65]
- *   66: moveVertical[66]
- * @param config
- */
-
 export const generateNeurons = (config: Config): NeuronsData => {
   const inputNeurons: Neuron[] = [
     {
