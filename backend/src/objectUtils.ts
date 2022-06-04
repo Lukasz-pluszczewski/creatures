@@ -63,10 +63,12 @@ export const getGenomesView = (
   while (creaturesData.alive[index]) {
     genomesView.push(createArray(config.genomeLength).map((__, genomeIndex) => {
       const geneIndex = index * config.genomeLength + genomeIndex;
+
       return {
         sourceId: genomes.sourceId[geneIndex],
         targetId: genomes.targetId[geneIndex],
         weight: genomes.weight[geneIndex],
+        validConnection: !!genomes.validConnection[geneIndex],
       };
     }));
     index++;

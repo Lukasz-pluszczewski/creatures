@@ -20,7 +20,7 @@ export const config = {
   maxNumberOfOffspring: 20,
 
   repopulateWhenPopulationDiesOut: true,
-  populationLimit: 500,
+  populationLimit: 200,
 
   // energy is in range [0, 65535]
   initialEnergy: Math.floor(0.01 * MAX_16_BIT_INTEGER),

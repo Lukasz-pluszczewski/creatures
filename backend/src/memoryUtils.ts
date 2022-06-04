@@ -13,12 +13,13 @@ export const createPopulationDataStorage = (
   config: Config,
   neurons: NeuronsData
 ): { genomes: Genomes, creaturesData: CreaturesData } => {
-  // creating memory storage for genomes' values SourceType, SourceId, TargetType, TargetId, Weight
+  // creating memory storage for genomes' values SourceId, TargetId, Weight, validConnection
   // creatures indexes start with 1
   const genomes = {
     sourceId: new Uint8Array((config.populationLimit + 1) * config.genomeLength),
     targetId: new Uint8Array((config.populationLimit + 1) * config.genomeLength),
     weight: new Int16Array((config.populationLimit + 1) * config.genomeLength),
+    validConnection: new Uint8Array((config.populationLimit + 1) * config.genomeLength),
   };
 
   // creating memory storage for creatures' data
@@ -65,14 +66,16 @@ export const copyDataStorage = (source: Record<string, TypedArray | any>, target
 
 export const createFoodDataStorage = (config: Config) => {
   const maxFoodNumber = config.worldSizeX * config.worldSizeY;
+  // creating memory storage for food data
+  // food indexes start with 1
   const foodData: FoodData = {
     x: config.worldSizeX > 255
-      ? new Uint16Array(maxFoodNumber)
-      : new Uint8Array(maxFoodNumber),
+      ? new Uint16Array(maxFoodNumber + 1)
+      : new Uint8Array(maxFoodNumber + 1),
     y: config.worldSizeY > 255
-      ? new Uint16Array(maxFoodNumber)
-      : new Uint8Array(maxFoodNumber),
-    energy: new Uint16Array(maxFoodNumber),
+      ? new Uint16Array(maxFoodNumber + 1)
+      : new Uint8Array(maxFoodNumber + 1),
+    energy: new Uint16Array(maxFoodNumber + 1),
   };
 
   return foodData;

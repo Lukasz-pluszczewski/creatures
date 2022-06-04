@@ -10,17 +10,15 @@ import { clamp, mapNumberToDifferentRange, randomInteger } from './numberUtils';
 import { clearDataStorage, copyDataStorage, createFoodDataStorage, createPopulationDataStorage } from './memoryUtils';
 import { doWithProbability } from './probabilityUtils';
 
-import { once, saveToFile, time, timeEnd, worldDataValidator } from './debugUtils';
+import { genomeValidator, time, timeEnd } from './debugUtils';
 
 import { Config } from './config';
 import {
-  CreaturesData, FoodData,
   InputValues,
   NeuronsData,
   Simulator,
   WorldData
 } from './types';
-import { omitPick } from './objectUtils';
 import { growFood, regrowFood } from './foodUtils';
 
 export const createSimulator = (
@@ -149,9 +147,9 @@ export const createSimulator = (
           config.maximumEnergy
         );
 
-        simulator.state.world.food[newWorldIndex] = 0;
-        simulator.state.foodData.x[newCoordinateFoodIndex] = 0;
-        simulator.state.foodData.y[newCoordinateFoodIndex] = 0;
+        // simulator.state.world.food[newWorldIndex] = 0;
+        // simulator.state.foodData.x[newCoordinateFoodIndex] = 0;
+        // simulator.state.foodData.y[newCoordinateFoodIndex] = 0;
         simulator.state.foodData.energy[newCoordinateFoodIndex] = 0;
 
         simulator.state.numberOfFood--;
@@ -169,7 +167,7 @@ export const createSimulator = (
       time('step creatures');
       let creatureIndex = 1;
       // there are no neurons with id = 0, so we assume that index with sourceId = 0 is just empty
-      while (creaturesData.alive[creatureIndex] && creatureIndex <= config.populationLimit) {
+      while (creaturesData.alive[creatureIndex] && creatureIndex <= config.populationLimit + 1) {
         creaturesNumber++;
         if (creaturesData.energy[creatureIndex] <= 0) {
           // console.log('wat?', creatureIndex, creaturesData.energy[creatureIndex]);
@@ -211,7 +209,7 @@ export const createSimulator = (
           creaturesNumber,
           totalEnergy: 0,
           state: config.generationGenomeLogFrequency && !(simulator.state.generation % config.generationGenomeLogFrequency)
-            ? simulator.cloneState({ pick: ['genomes', 'lastGenomes'] })
+            ? simulator.cloneState({ pick: ['genomes', 'lastGenomes', 'creaturesData'] })
             : null,
         };
 
@@ -244,6 +242,10 @@ export const createSimulator = (
       // stats
       let totalEnergy = 0;
       const timeStart = performance.now();
+      const logGenerationState = config.generationGenomeLogFrequency && !(simulator.state.generation % config.generationGenomeLogFrequency);
+      const clonedState = !simulator.state.generation || logGenerationState
+        ? simulator.cloneState({ pick: ['genomes', 'lastGenomes', 'creaturesData'] })
+        : null;
       timeEnd('1');
 
       time('1.5');
@@ -275,7 +277,7 @@ export const createSimulator = (
       let creatureIndex = 1;
       let newCreatureIndex = 1;
       let numberOfCreaturesWithOffspring = 0;
-      while (simulator.state.lastCreaturesData.alive[creatureIndex] && creatureIndex <= config.populationLimit) {
+      while (simulator.state.lastCreaturesData.alive[creatureIndex] && creatureIndex <= config.populationLimit + 1) {
         totalEnergy += simulator.state.lastCreaturesData.energy[creatureIndex];
         const {
           reproductionProbability,
@@ -326,7 +328,7 @@ export const createSimulator = (
       time('6');
       // repopulating
       if (newCreatureIndex === 1 && config.repopulateWhenPopulationDiesOut) {
-        iterateOverRange(1, config.populationLimit, (index) => {
+        iterateOverRange(1, config.population, (index) => {
           createCreature({
             index,
             parentIndex: null,
@@ -341,10 +343,11 @@ export const createSimulator = (
         })
       }
       timeEnd('6');
+      genomeValidator(simulator.state.creaturesData, simulator.state.genomes, simulator.config);
 
       time('7');
       // stats
-      const logGenerationState = config.generationGenomeLogFrequency && !(simulator.state.generation % config.generationGenomeLogFrequency)
+
       simulator.generationsHistory[simulator.state.generation].timeStart = timeStart;
       simulator.generationsHistory[simulator.state.generation].timeEnd = performance.now();
       simulator.generationsHistory[simulator.state.generation].totalOffspring = newCreatureIndex - 1;
@@ -352,15 +355,17 @@ export const createSimulator = (
       simulator.generationsHistory[simulator.state.generation].creaturesNumber =
         simulator.generationsHistory[simulator.state.generation].stepHistory[0].creaturesNumber;
       simulator.generationsHistory[simulator.state.generation].totalEnergy = totalEnergy;
-      simulator.generationsHistory[simulator.state.generation].state =
-        !simulator.state.generation || logGenerationState
-          ? simulator.cloneState({ pick: ['genomes', 'lastGenomes'] })
-          : null;
+      simulator.generationsHistory[simulator.state.generation].state = clonedState;
+
+      genomeValidator(
+        simulator.generationsHistory[simulator.state.generation].state.creaturesData,
+        simulator.generationsHistory[simulator.state.generation].state.genomes,
+        simulator.config,
+      )
 
       simulator.generationCache = {};
       simulator.state.generation++;
       simulator.state.step = 0;
-
 
       timeEnd('7');
       if (newCreatureIndex === 1 && !config.repopulateWhenPopulationDiesOut) {

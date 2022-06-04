@@ -2,6 +2,7 @@ import fs from 'fs';
 import { getIndexFromCoordinates, iterateOverRange, sample, times } from './arrayUtils';
 import { Config, config } from './config';
 import { CreaturesData, FoodData, Simulator, WorldData } from './types';
+import { getGenomesView } from './objectUtils';
 
 export const saveToFile = (name, data) => {
   return fs.writeFileSync(`./${name}.json`, JSON.stringify(data, null, 2));
@@ -18,6 +19,20 @@ export const once = cb => {
 };
 once.state = { triggered: false };
 once.reset = () => once.state.triggered = false;
+
+export const genomeValidator = (creaturesData, genomes, config) => {
+  const genomesView = getGenomesView(creaturesData, genomes, config);
+  genomesView.forEach(genome => {
+    genome.forEach(gene => {
+      if (!gene.targetId) {
+        throw new Error('gene.targetId is 0');
+      }
+      if (!gene.sourceId) {
+        throw new Error('gene.sourceId is 0');
+      }
+    })
+  })
+};
 
 export const worldDataValidator = (world: WorldData, creaturesData: CreaturesData, foodData: FoodData, config: Config) => {
   let creatureIndex = 1;
@@ -36,19 +51,20 @@ export const worldDataValidator = (world: WorldData, creaturesData: CreaturesDat
     creatureIndex++;
   }
 
-  times(config.foodLimit, index => {
-    if (!foodData.energy[index + 1]) {
+  iterateOverRange(1, config.foodLimit, index => {
+    if (!foodData.energy[index]) {
       return;
     }
-    const x = foodData.x[index + 1];
-    const y = foodData.y[index + 1];
+
+    const x = foodData.x[index];
+    const y = foodData.y[index];
     if (x < 0 || x >= config.worldSizeX || y < 0 || y >= config.worldSizeY) {
-      throw new Error(`Food out of world bounds (index: ${index + 1}, x: ${x}, y: ${y})`);
+      throw new Error(`Food out of world bounds (index: ${index}, x: ${x}, y: ${y})`);
     }
 
     const worldIndex = getIndexFromCoordinates(x, y, config.worldSizeX);
-    if (world.food[worldIndex] !== (index + 1)) {
-      throw new Error(`Food not in world (index: ${index + 1}, worldIndex: ${worldIndex}, x: ${x}, y: ${y}, foundInWorld: ${world.food[worldIndex]})`);
+    if (world.food[worldIndex] !== index) {
+      throw new Error(`Food not in world (index: ${index}, worldIndex: ${worldIndex}, x: ${x}, y: ${y}, foundInWorld: ${world.food[worldIndex]})`);
     }
   });
 
@@ -119,4 +135,15 @@ export const analyzeCreatures = (config: Config, simulator: Simulator) => {
   });
 
   return stats;
+};
+
+export const logNumberOfCreaturesAlive = (label: string, creaturesData: CreaturesData) => {
+  let creatureIndex = 1;
+  while(creaturesData.alive[creatureIndex]) {
+    creatureIndex++;
+  }
+
+  console.log(label, creatureIndex - 1);
+
+  return false;
 };

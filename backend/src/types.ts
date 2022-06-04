@@ -9,11 +9,13 @@ export type Genomes = {
   sourceId: Uint8Array,
   targetId: Uint8Array,
   weight: Int16Array,
+  validConnection: Uint8Array,
 };
 export type GenomeView = {
   sourceId: number,
   targetId: number,
   weight: number,
+  validConnection: boolean,
 }[];
 
 // data stored in traditional array, not accessed frequently, indexes start with 1
@@ -106,7 +108,7 @@ export type GenerationHistoryEntry = {
   creaturesNumber?: number,
   totalOffspring?: number,
   numberOfCreaturesWithOffspring?: number,
-  state?: Pick<Simulator['state'], 'genomes' | 'lastGenomes'> | null,
+  state?: Pick<Simulator['state'], 'genomes' | 'lastGenomes' | 'creaturesData'> | null,
   timeStart?: number,
   timeEnd?: number,
 };

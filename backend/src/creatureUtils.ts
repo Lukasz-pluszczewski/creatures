@@ -73,7 +73,7 @@ export const createCreature = (
         config.mutationProbabilityMatrix.sourceId,
         () => {
           const possibleSourceNeurons = Object.keys(neurons.possibleConnectionsFrom);
-          if (lastGenomes.sourceId[parentAbsoluteGenomeIndex]) {
+          if (lastGenomes.sourceId[parentAbsoluteGenomeIndex] && lastGenomes.validConnection[parentAbsoluteGenomeIndex]) {
             const sourceNeuronIdIndex = possibleSourceNeurons.findIndex(sourceNeuronId =>
               parseInt(sourceNeuronId) === lastGenomes.sourceId[parentAbsoluteGenomeIndex]
             );
@@ -92,9 +92,9 @@ export const createCreature = (
           }
         },
         () => {
-          if (lastGenomes.sourceId[parentAbsoluteGenomeIndex]) {
+          if (lastGenomes.sourceId[parentAbsoluteGenomeIndex] && lastGenomes.validConnection[parentAbsoluteGenomeIndex]) {
             genomes.sourceId[absoluteGenomeIndex] =
-              lastGenomes.sourceId[parentAbsoluteGenomeIndex]
+              lastGenomes.sourceId[parentAbsoluteGenomeIndex];
           } else {
             const possibleSourceNeurons = Object.keys(neurons.possibleConnectionsFrom);
             genomes.sourceId[absoluteGenomeIndex] =
@@ -119,7 +119,7 @@ export const createCreature = (
           const newTargetNeuronIdIndex = (
             targetNeuronIdIndex + nonUniformRandomInteger(1, 10, 1 / 5)
           ) % possibleTargetNeurons.length;
-          genomes.sourceId[absoluteGenomeIndex] = possibleTargetNeurons[newTargetNeuronIdIndex];
+          genomes.targetId[absoluteGenomeIndex] = possibleTargetNeurons[newTargetNeuronIdIndex];
         },
         () => {
           const possibleTargetNeurons =
@@ -127,10 +127,14 @@ export const createCreature = (
           if (possibleTargetNeurons.includes(lastGenomes.targetId[parentAbsoluteGenomeIndex])) {
             genomes.targetId[absoluteGenomeIndex] = lastGenomes.targetId[parentAbsoluteGenomeIndex];
           } else {
-            sample(neurons.possibleConnectionsFrom[genomes.sourceId[absoluteGenomeIndex]]);
+            genomes.targetId[absoluteGenomeIndex] = sample(neurons.possibleConnectionsFrom[genomes.sourceId[absoluteGenomeIndex]]);
           }
         }
       );
+
+      if (!genomes.targetId[absoluteGenomeIndex]) {
+        throw new Error('Target neuron is incorrect');
+      }
 
       // mutating weight
       doWithProbability(config.mutationProbabilityMatrix.weight,

@@ -1,14 +1,12 @@
 import simpleExpress from 'simple-express-framework';
-import cloneDeep from 'lodash.clonedeep';
 import { Config, config } from './config';
 import { generateNeurons } from './neuronsUtils';
 import { createSimulator } from './simulator';
 import { CreaturesData, Simulator } from './types';
 import { createArray } from './arrayUtils';
 import { clamp, mapNumberToDifferentRange } from './numberUtils';
-import { MAX_16_BIT_INTEGER } from './constants';
 import { getCreaturesDataView, getFoodDataView, getGenomesView } from './objectUtils';
-import { analyzeCreatures, worldDataValidator } from './debugUtils';
+import { analyzeCreatures, genomeValidator, worldDataValidator } from './debugUtils';
 
 const neuronsData = generateNeurons(config);
 
@@ -103,7 +101,7 @@ simpleExpress({
     ['/', {
       get: () => {
         const creaturesDataView = getCreaturesDataView(simulator.state.creaturesData, simulator.neurons);
-        const genomesView = getGenomesView(simulator.state.creaturesData, simulator.state.genomes, config);
+        const genomesView = getGenomesView(simulator.state.creaturesData, simulator.state.genomes, simulator.config);
 
         const results = {
           config,
@@ -186,6 +184,11 @@ simpleExpress({
             body: { message: 'Not found' },
           };
         }
+        genomeValidator(
+          simulator.generationsHistory[number].state.creaturesData,
+          simulator.generationsHistory[number].state.genomes,
+          simulator.config,
+        )
         const generation = simulator.generationsHistory[number];
 
         return {
@@ -212,10 +215,13 @@ simpleExpress({
             state: generation.state
               ? {
                 genomes: getGenomesView(
-                  generation.stepHistory[0].state.creaturesData,
+                  generation.state.creaturesData,
                   generation.state.genomes,
                   config
                 ),
+                creaturesData: generation?.state?.creaturesData
+                  ? getCreaturesDataView(generation.state.creaturesData, simulator.neurons)
+                  : null,
               }
               : null,
           }

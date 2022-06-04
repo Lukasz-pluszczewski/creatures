@@ -90,6 +90,7 @@ export const cleanGenome = (
   config: Config,
 ) => {
   times(config.genomeLength, geneIndex => {
+    genomes.validConnection[creatureIndex * config.genomeLength + geneIndex] = 1;
     const sourceId = genomes.sourceId[creatureIndex * config.genomeLength + geneIndex];
     const targetId = genomes.targetId[creatureIndex * config.genomeLength + geneIndex];
 
@@ -106,9 +107,10 @@ export const cleanGenome = (
     });
 
     if (isDuplicate || !validNeurons.has(sourceId) || !validNeurons.has(targetId)) {
-      genomes.sourceId[creatureIndex * config.genomeLength + geneIndex] = 0;
-      genomes.targetId[creatureIndex * config.genomeLength + geneIndex] = 0;
-      genomes.weight[creatureIndex * config.genomeLength + geneIndex] = 0;
+      // genomes.sourceId[creatureIndex * config.genomeLength + geneIndex] = 0;
+      // genomes.targetId[creatureIndex * config.genomeLength + geneIndex] = 0;
+      // genomes.weight[creatureIndex * config.genomeLength + geneIndex] = 0;
+      genomes.validConnection[creatureIndex * config.genomeLength + geneIndex] = 0;
     }
   });
 };
