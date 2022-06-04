@@ -3,7 +3,7 @@ import {
   NEURON_TYPE_INPUT,
   NEURON_TYPE_INTERNAL,
 } from './constants';
-import { Config, config } from './config';
+import { Config } from './config';
 import { ConnectionMap, Genomes, InputValues, Neuron, NeuronsData, Simulator } from './types';
 
 export const getWeight = (weight: number, weightMultiplier: number) => weight * weightMultiplier;
@@ -74,6 +74,9 @@ export const getRawConnectionMap = (creatureIndex: number, genomes: Genomes, con
     const targetId = genomes.targetId[creatureIndex * config.genomeLength + geneIndex];
     const weight = genomes.weight[creatureIndex * config.genomeLength + geneIndex];
 
+    if (!sourceId || !targetId) {
+      return;
+    }
     connectionMap.from[sourceId] = push(connectionMap.from[sourceId], { weight, index: geneIndex, targetId });
     connectionMap.to[targetId] = push(connectionMap.to[targetId], { weight, index: geneIndex, sourceId });
   });
@@ -84,6 +87,7 @@ export const cleanGenome = (
   creatureIndex: number,
   genomes: Genomes,
   validNeurons: Set<Neuron['id']>,
+  config: Config,
 ) => {
   times(config.genomeLength, geneIndex => {
     const sourceId = genomes.sourceId[creatureIndex * config.genomeLength + geneIndex];
@@ -114,7 +118,7 @@ export const calculateGraph = (
   inputValues: InputValues,
   simulator: Simulator,
 ) => {
-  const connectionMap = getRawConnectionMap(creatureIndex, simulator.state.genomes, config);
+  const connectionMap = getRawConnectionMap(creatureIndex, simulator.state.genomes, simulator.config);
   const inputAndInternalNeuronsValuesMap: { [neuronId: Neuron['id']]: number } = {};
   const outputNeuronsValuesMap: { [neuronId: Neuron['id']]: number } = {};
 
@@ -145,7 +149,7 @@ export const calculateGraph = (
       return;
     }
     const inputSum = (connectionMap.to[neuron.id] || []).reduce((sum, connection) => {
-      return sum + inputAndInternalNeuronsValuesMap[connection.sourceId] * getWeight(connection.weight, config.weightMultiplier);
+      return sum + inputAndInternalNeuronsValuesMap[connection.sourceId] * getWeight(connection.weight, simulator.config.weightMultiplier);
     }, 0);
     inputAndInternalNeuronsValuesMap[neuron.id] = neuron.activation(inputSum);
   });
@@ -156,7 +160,7 @@ export const calculateGraph = (
       return;
     }
     const inputSum = (connectionMap.to[neuron.id] || []).reduce((sum, connection) => {
-      return sum + inputAndInternalNeuronsValuesMap[connection.sourceId] * getWeight(connection.weight, config.weightMultiplier);
+      return sum + inputAndInternalNeuronsValuesMap[connection.sourceId] * getWeight(connection.weight, simulator.config.weightMultiplier);
     }, 0);
     outputNeuronsValuesMap[neuron.id] = neuron.activation(inputSum);
   });

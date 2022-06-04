@@ -66,10 +66,12 @@ export const findClosestFood = (x, y, world: WorldData, foodData: FoodData, conf
     });
 
     timeEnd('findClosestFood 2');
-    level++;
-    time('getLevel ' + level);
-    coordinatesAround = getLevel(x, y, level, config.worldSizeX, config.worldSizeY);
-    timeEnd('getLevel ' + level);
+
+    // time('getLevel ' + level + 1);
+    coordinatesAround = ++level <= config.foodSensorRange
+      ? getLevel(x, y, level, config.worldSizeX, config.worldSizeY)
+      : [];
+    // timeEnd('getLevel ' + level);
   }
   timeEnd('findClosestFood while');
 

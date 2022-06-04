@@ -41,19 +41,23 @@ export const createPopulationDataStorage = (
 
   return { genomes, creaturesData };
 };
+export const clearTypedArray = (array: TypedArray): void => {
+  array.fill(0);
+}
 export const clearDataStorage = <T extends { [key: string]: TypedArray | any }>(data: T) => {
   Object.entries(data).forEach(([key, value]) => {
-    if (isTypedArray(value)){
-      value.fill(0);
+    if (isTypedArray(value)) {
+      clearTypedArray(value);
     } else {
       data[key as keyof T] = [] as TypedArray | any;
     }
   });
 };
+export const copyTypedArray = <T extends TypedArray>(source: T, target: T) => target.set(source);
 export const copyDataStorage = (source: Record<string, TypedArray | any>, target: Record<string, TypedArray | any>) => {
   Object.entries(source).forEach(([key, value]) => {
-    if (isTypedArray(value) && isTypedArray(target[key])){
-      return target[key].set(value);
+    if (isTypedArray(value) && isTypedArray(target[key])) {
+      return copyTypedArray(value, target[key]);
     }
     target[key] = value;
   });

@@ -2,9 +2,9 @@ import React, { useEffect } from 'react';
 import * as vis from 'vis-network/standalone/esm';
 
 export const NeuronVisualization = ({ genome, neurons, config }) => {
-  console.log('genome', genome);
-  console.log('neurons', neurons);
-  console.log('config', config);
+  // console.log('genome', genome);
+  // console.log('neurons', neurons);
+  // console.log('config', config);
   useEffect(() => {
     const container = document.getElementById("neuron-visualization");
     const { weightMultiplier } = config;
@@ -30,7 +30,7 @@ export const NeuronVisualization = ({ genome, neurons, config }) => {
 
     const edges = new vis.DataSet(genome.map(gene => {
       const { sourceId, targetId, weight: rawWeight } = gene;
-      const weight = (rawWeight - 32768) * weightMultiplier;
+      const weight = rawWeight * weightMultiplier;
       return {
         from: sourceId,
         to: targetId,

@@ -13,3 +13,4 @@ export const MIN_OUTPUT_NEURON_ID = 64;
 
 export const MAX_16_BIT_INTEGER = 65535;
 export const MAX_16_BIT_SIGNED_INTEGER = 32767;
+export const MIN_16_BIT_SIGNED_INTEGER = -32768;

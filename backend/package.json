@@ -5,17 +5,17 @@
   "repository": "",
   "main": "dist",
   "scripts": {
-    "dev": "NODE_PATH=src ENV=development tsnd src/index.ts",
+    "dev": "NODE_PATH=src ENV=development NODE_OPTIONS='--inspect' tsnd src/index.ts",
     "start": "NODE_PATH=dist ENV=production node dist",
     "test": "jest"
   },
   "author": "Łukasz Pluszczewski",
   "license": "MIT",
   "devDependencies": {
-    "@types/jest": "^27.4.1",
-    "jest": "^27.5.1",
+    "@types/jest": "^28.1.0",
+    "jest": "^28.1.0",
     "jest-expect-message": "^1.0.2",
-    "ts-jest": "^27.1.4",
+    "ts-jest": "^28.0.4",
     "ts-node": "^10.7.0",
     "ts-node-dev": "^1.1.8",
     "typescript": "^4.6.4"

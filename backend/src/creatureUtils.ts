@@ -36,9 +36,14 @@ export const createCreature = (
   }: CreateCreatureParams,
 ): void => {
   creaturesData.alive[index] = 1;
-  creaturesData.x[index] = randomInteger(0, config.worldSizeX);
-  creaturesData.y[index] = randomInteger(0, config.worldSizeY);
+  creaturesData.x[index] = randomInteger(0, config.worldSizeX - 1);
+  creaturesData.y[index] = randomInteger(0, config.worldSizeY - 1);
   world.creatures[getIndexFromCoordinates(creaturesData.x[index], creaturesData.y[index], config.worldSizeX)] = index;
+
+  if (world.creatures[getIndexFromCoordinates(creaturesData.x[index], creaturesData.y[index], config.worldSizeX)] !== index) {
+    throw new Error(`Incorrect index ${index}`);
+  }
+
 
   creaturesData.energy[index] = config.initialEnergy;
 
@@ -52,13 +57,10 @@ export const createCreature = (
         throw new Error('No source neuron');
       }
 
-      if (index === 2 && geneIndex === 0) {
-        // console.log('creating random genome', index * config.genomeLength + geneIndex, genomes.sourceId[index * config.genomeLength + geneIndex], Object.keys(neurons.possibleConnectionsFrom));
-      }
       genomes.targetId[index * config.genomeLength + geneIndex] =
         sample(neurons.possibleConnectionsFrom[genomes.sourceId[index * config.genomeLength + geneIndex]]);
       genomes.weight[index * config.genomeLength + geneIndex] =
-        randomInteger(- MAX_16_BIT_SIGNED_INTEGER - 1, MAX_16_BIT_SIGNED_INTEGER);
+        randomInteger(-MAX_16_BIT_SIGNED_INTEGER - 1, MAX_16_BIT_SIGNED_INTEGER);
     });
   } else {
     // mutating parent genome
@@ -146,7 +148,7 @@ export const createCreature = (
 
   const rawConnectionMap = getRawConnectionMap(index, genomes, config);
   const validNeurons = traverseOutputNeurons(neurons, rawConnectionMap);
-  cleanGenome(index, genomes, validNeurons);
+  cleanGenome(index, genomes, validNeurons, config);
 
   // if (validNeurons.size === 0) {
   //   throw new Error('Creature with no valid neurons');
