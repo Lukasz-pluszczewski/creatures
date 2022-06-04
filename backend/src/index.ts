@@ -1,5 +1,5 @@
 import simpleExpress from 'simple-express-framework';
-import { Config, config } from './config';
+import { Config, getConfig } from './config';
 import { generateNeurons } from './neuronsUtils';
 import { createSimulator } from './simulator';
 import { CreaturesData, Simulator } from './types';
@@ -7,6 +7,8 @@ import { times } from './arrayUtils';
 import { clamp, mapNumberToDifferentRange } from './numberUtils';
 import { getCreaturesDataView, getFoodDataView, getGenomesView } from './objectUtils';
 import { analyzeCreatures, genomeValidator, worldDataValidator } from './debugUtils';
+
+const config = getConfig();
 
 const neuronsData = generateNeurons(config);
 

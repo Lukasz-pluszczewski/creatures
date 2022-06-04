@@ -95,7 +95,7 @@ export type NeuronsData = {
   possibleConnectionsFrom: { [neuronId: Neuron['id']]: Neuron['id'][] },
   numberOfPossibleTargetNeurons: number,
   numberOfPossibleSourceNeurons: number,
-  reproduceNeuronId: number,
+  // reproduceNeuronId: number,
   numberOfNeurons: number,
 };
 

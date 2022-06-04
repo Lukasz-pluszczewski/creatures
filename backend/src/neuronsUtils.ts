@@ -146,11 +146,11 @@ export const generateNeurons = (config: Config): NeuronsData => {
   const internalNeuronsIds = internalNeurons.map(({ id }) => id);
 
   const outputNeurons: Neuron[] = [
-    {
-      label: 'reproduce',
-      act: () => {},
-      activation: x => x,
-    },
+    // {
+    //   label: 'reproduce',
+    //   act: () => {},
+    //   activation: x => x,
+    // },
     {
       label: 'moveHorizontal',
       act: (output: number, creatureIndex: number, config: Config, simulator: Simulator) => swich([
@@ -230,7 +230,7 @@ export const generateNeurons = (config: Config): NeuronsData => {
     outputNeuronsIds,
     numberOfNeurons: inputNeurons.length + internalNeurons.length + outputNeurons.length,
     neuronMap,
-    reproduceNeuronId: outputNeurons.find(({ label }) => label.startsWith('reproduce')).id,
+    // reproduceNeuronId: outputNeurons.find(({ label }) => label.startsWith('reproduce')).id,
     possibleConnectionsFrom,
     possibleConnectionsTo,
     numberOfPossibleSourceNeurons: Object.keys(possibleConnectionsFrom).length,

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import { getIndexFromCoordinates, iterateOverRange, sample, times } from './arrayUtils';
-import { Config, config } from './config';
+import { Config } from './config';
 import { CreaturesData, FoodData, Simulator, WorldData } from './types';
 import { getGenomesView } from './objectUtils';
 
@@ -8,8 +8,9 @@ export const saveToFile = (name, data) => {
   return fs.writeFileSync(`./${name}.json`, JSON.stringify(data, null, 2));
 };
 
-export const time = (label) => config.enableLogs ? console.time(label) : null;
-export const timeEnd = (label) => config.enableLogs ? console.timeEnd(label) : null;
+const enableLogs = false;
+export const time = (label) => enableLogs ? console.time(label) : null;
+export const timeEnd = (label) => enableLogs ? console.timeEnd(label) : null;
 
 export const once = cb => {
   if (!once.state.triggered) {

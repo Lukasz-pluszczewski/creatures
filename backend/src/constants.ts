@@ -1,7 +1,7 @@
 export const OFFSPRING_NUMBER_CALCULATION_TYPES = {
   RANDOM: 'RANDOM',
   FROM_ENERGY: 'FROM_ENERGY',
-};
+} as const;
 
 export const NEURON_TYPE_INPUT = 0;
 export const NEURON_TYPE_INTERNAL = 1;
