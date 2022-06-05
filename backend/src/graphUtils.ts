@@ -68,9 +68,7 @@ export const getRawConnectionMap = (creatureIndex: number, genomes: Genomes, con
     to: {},
   };
   times(config.genomeLength, geneIndex => {
-    // const sourceType = genomes.sourceType[creatureIndex * config.genomeLength + geneIndex];
     const sourceId = genomes.sourceId[creatureIndex * config.genomeLength + geneIndex];
-    // const targetType = genomes.targetType[creatureIndex * config.genomeLength + geneIndex];
     const targetId = genomes.targetId[creatureIndex * config.genomeLength + geneIndex];
     const weight = genomes.weight[creatureIndex * config.genomeLength + geneIndex];
 
@@ -115,7 +113,7 @@ export const cleanGenome = (
   });
 };
 
-export const calculateGraph = (
+export const calculateGraph = async (
   creatureIndex: number,
   inputValues: InputValues,
   simulator: Simulator,
@@ -123,9 +121,6 @@ export const calculateGraph = (
   const connectionMap = getRawConnectionMap(creatureIndex, simulator.state.genomes, simulator.config);
   const inputAndInternalNeuronsValuesMap: { [neuronId: Neuron['id']]: number } = {};
   const outputNeuronsValuesMap: { [neuronId: Neuron['id']]: number } = {};
-
-  // console.log('connection map');
-  // console.dir(connectionMap, { depth: null });
 
   const validNeuronsMap = new Set();
   times(simulator.neurons.numberOfNeurons, neuronIndex => {

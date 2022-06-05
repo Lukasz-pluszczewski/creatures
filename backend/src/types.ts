@@ -77,8 +77,8 @@ export type Neuron = {
   activation: (input: number) => number,
   output?: number,
   input?: number,
-  getValue?: (creatureIndex: number, config: Config, simulator: Simulator) => number,
-  act?: (output: number, creatureIndex: number, config: Config, simulator: Simulator) => void,
+  getValue?: (creatureIndex: number, config: Config, simulator: Simulator) => Promise<number>,
+  act?: (output: number, creatureIndex: number, config: Config, simulator: Simulator) => Promise<void>,
   type: number,
 };
 export type NeuronMap = { [neuronId: Neuron['id']]: Neuron }
@@ -97,6 +97,7 @@ export type NeuronsData = {
   numberOfPossibleSourceNeurons: number,
   // reproduceNeuronId: number,
   numberOfNeurons: number,
+
 };
 
 export type InputValues = { [inputNeuronId: number]: number };
@@ -142,13 +143,13 @@ export type Simulator = {
   cloneState: <
     TOmit extends keyof Simulator['state'] = never,
     TPick extends keyof Simulator['state'] = keyof Simulator['state']
-  >({ omit, pick }: { omit?: TOmit[], pick?: TPick[] }) =>
-    Omit<Pick<Simulator['state'], TPick>, TOmit>,
+  >({ omit, pick }?: { omit?: TOmit[], pick?: TPick[] }) =>
+    Promise<Omit<Pick<Simulator['state'], TPick>, TOmit>>,
   stepCache: { [cacheKey: string]: any },
-  getStepCached: <T>(key: string, getter: () => T) => T,
+  getStepCached: <T>(key: string, getter: () => Promise<T>) => Promise<T>,
   generationCache: { [cacheKey: string]: any },
-  getGenerationCached: <T>(key: string, getter: () => T) => T,
-  moveCreature: (creatureIndex: number, x: number, y: number) => void,
-  simulateStep: (generationStepLoggingEnabled?: boolean) => void,
-  simulateGeneration: () => boolean,
+  getGenerationCached: <T>(key: string, getter: () => T) => Promise<T>,
+  moveCreature: (creatureIndex: number, x: number, y: number) => Promise<void>,
+  simulateStep: (generationStepLoggingEnabled?: boolean) => Promise<void>,
+  simulateGeneration: () => Promise<boolean>,
 };
