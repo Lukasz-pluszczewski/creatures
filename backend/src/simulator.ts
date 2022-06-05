@@ -7,7 +7,13 @@ import { forEachAsync, iterateOverRange, iterateOverRangeAsync, times, timesAsyn
 import { calculateGraph } from './graphUtils';
 import { createCreature } from './creatureUtils';
 import { clamp, mapNumberToDifferentRange, randomInteger } from './numberUtils';
-import { clearDataStorage, copyDataStorage, createFoodDataStorage, createPopulationDataStorage } from './memoryUtils';
+import {
+  clearDataStorage,
+  cloneDataStorage,
+  copyDataStorage,
+  createFoodDataStorage,
+  createPopulationDataStorage
+} from './memoryUtils';
 import { doWithProbability, doWithProbabilityAsync } from './probabilityUtils';
 
 import { analyzeCreatures, genomeValidator, time, timeEnd, worldDataValidator } from './debugUtils';
@@ -96,7 +102,7 @@ export const createSimulator = async (
         if (omitMap && omitMap[key]) {
           return;
         }
-        clonedState[key] = structuredClone(simulator.state[key]);
+        clonedState[key] = cloneDataStorage(simulator.state[key]);
       });
 
       return clonedState as Omit<Pick<Simulator['state'], TPick>, TOmit>;

@@ -51,9 +51,9 @@ export const config = {
   },
   weightMultiplier: 0.0002, // weight can be in range [-32768 * weightMultiplier, 32767 * weightMultiplier]; [-6.55, 6.55]
 
-  stepLogFrequency: 0, // n % stepLogFrequency === 0 => log n-th step; 0 => logging disabled; first step is always logged
-  generationStepsLogFrequency: 0, // n % generationStepsLogFrequency === 0 => log steps for n-th generation; 0 => logging disabled; first generation is always logged
-  generationGenomeLogFrequency: 0, // n % generationLogFrequency === 0 => log genome for n-th generation; 0 => logging disabled; first generation is always logged
+  stepLogFrequency: 1, // n % stepLogFrequency === 0 => log n-th step; 0 => logging disabled; first step is always logged
+  generationStepsLogFrequency: 1, // n % generationStepsLogFrequency === 0 => log steps for n-th generation; 0 => logging disabled; first generation is always logged
+  generationGenomeLogFrequency: 1, // n % generationLogFrequency === 0 => log genome for n-th generation; 0 => logging disabled; first generation is always logged
 } as unknown as Config;
 const neuronsData = generateNeurons(config);
 
