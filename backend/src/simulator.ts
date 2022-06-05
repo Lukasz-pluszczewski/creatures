@@ -3,14 +3,14 @@ import cloneDeep from 'lodash.clonedeep';
 
 import { MAX_16_BIT_INTEGER, OFFSPRING_NUMBER_CALCULATION_TYPES } from './constants';
 
-import { iterateOverRange, times } from './arrayUtils';
+import { forEachAsync, iterateOverRange, iterateOverRangeAsync, times, timesAsync } from './arrayUtils';
 import { calculateGraph } from './graphUtils';
 import { createCreature } from './creatureUtils';
 import { clamp, mapNumberToDifferentRange, randomInteger } from './numberUtils';
 import { clearDataStorage, copyDataStorage, createFoodDataStorage, createPopulationDataStorage } from './memoryUtils';
-import { doWithProbability } from './probabilityUtils';
+import { doWithProbability, doWithProbabilityAsync } from './probabilityUtils';
 
-import { genomeValidator, time, timeEnd } from './debugUtils';
+import { analyzeCreatures, genomeValidator, time, timeEnd, worldDataValidator } from './debugUtils';
 
 import { Config } from './config';
 import {
@@ -21,17 +21,17 @@ import {
 } from './types';
 import { growFood, regrowFood } from './foodUtils';
 
-export const createSimulator = (
+export const createSimulator = async (
   config: Config,
   neurons: NeuronsData,
   resultCondition: Simulator['resultCondition']
-): Simulator => {
+): Promise<Simulator> => {
   // creating storage for creatures data
-  const { genomes, creaturesData } = createPopulationDataStorage(config, neurons);
-  const { genomes: lastGenomes, creaturesData: lastCreaturesData } = createPopulationDataStorage(config, neurons);
+  const { genomes, creaturesData } = await createPopulationDataStorage(config, neurons);
+  const { genomes: lastGenomes, creaturesData: lastCreaturesData } = await createPopulationDataStorage(config, neurons);
 
   // creating storage for food data
-  const foodData = createFoodDataStorage(config);
+  const foodData = await createFoodDataStorage(config);
 
   // creating world data with creatures and food positions
   const world: WorldData = {
@@ -44,8 +44,8 @@ export const createSimulator = (
   }
 
   // creating creatures
-  iterateOverRange(1, config.population, index => {
-    createCreature({
+  iterateOverRangeAsync(1, config.population, async index => {
+    await createCreature({
       index,
       parentIndex: null,
       genomes,
@@ -59,7 +59,7 @@ export const createSimulator = (
   });
 
   // creating food
-  const maxFoodIndex = growFood(foodData, world, config);
+  const maxFoodIndex = await growFood(foodData, world, config);
 
   const simulator: Simulator = {
     neurons,
@@ -81,10 +81,10 @@ export const createSimulator = (
       generation: 0,
       step: 0,
     },
-    cloneState: <
+    cloneState: async <
       TOmit extends keyof Simulator['state'] = never,
       TPick extends keyof Simulator['state'] = keyof Simulator['state']
-    >({ omit, pick }: { omit?: TOmit[], pick?: TPick[] } = {}): Omit<Pick<Simulator['state'], TPick>, TOmit> => {
+    >({ omit, pick }: { omit?: TOmit[], pick?: TPick[] } = {}): Promise<Omit<Pick<Simulator['state'], TPick>, TOmit>> => {
       const omitMap = omit && omit.length ? omit.reduce((acc, key) => ({ ...acc, [key]: true }), {}) : null;
       const pickMap = pick && pick.length ? pick.reduce((acc, key) => ({ ...acc, [key]: true }), {}) : null;
 
@@ -101,15 +101,15 @@ export const createSimulator = (
 
       return clonedState as Omit<Pick<Simulator['state'], TPick>, TOmit>;
     },
-    getStepCached: (key: string, getter: () => any) => {
+    getStepCached: async (key: string, getter: () => any) => {
       simulator.stepCache[key] = (key in simulator.stepCache) ? simulator.stepCache[key] : getter();
       return simulator.stepCache[key];
     },
-    getGenerationCached: (key: string, getter: () => any) => {
+    getGenerationCached: async (key: string, getter: () => any) => {
       simulator.generationCache[key] = (key in simulator.generationCache) ? simulator.generationCache[key] : getter();
       return simulator.generationCache[key];
     },
-    moveCreature: (creatureIndex: number, x: number, y: number) => {
+    moveCreature: async (creatureIndex: number, x: number, y: number) => {
       const currentX = simulator.state.creaturesData.x[creatureIndex];
       const currentY = simulator.state.creaturesData.y[creatureIndex];
       const currentWorldIndex = currentY * config.worldSizeX + currentX;
@@ -155,7 +155,7 @@ export const createSimulator = (
         simulator.state.numberOfFood--;
       }
     },
-    simulateStep: (generationStepLoggingEnabled = true) => {
+    simulateStep: async (generationStepLoggingEnabled = true) => {
       time('Step');
       // stats
       let creaturesNumber = 0;
@@ -180,16 +180,16 @@ export const createSimulator = (
           clamp(creaturesData.energy[creatureIndex] - config.stepEnergyCost, 0, config.maximumEnergy);
 
         time('Calculating sensors data');
-        const inputValues = sensorsData(creatureIndex, config, simulator);
+        const inputValues = await sensorsData(creatureIndex, config, simulator);
         timeEnd('Calculating sensors data');
         time('Calculating graph');
-        const outputValues = calculateGraph(creatureIndex, inputValues, simulator);
+        const outputValues = await calculateGraph(creatureIndex, inputValues, simulator);
         timeEnd('Calculating graph');
 
         time('Acting');
-        Object.entries(outputValues).forEach(([neuronId, outputValue]) => {
+        await forEachAsync(Object.entries(outputValues), async ([neuronId, outputValue]) => {
           const outputNeuron = simulator.neurons.neuronMap[parseInt(neuronId)];
-          outputNeuron.act(outputValue, creatureIndex, config, simulator);
+          return outputNeuron.act(outputValue, creatureIndex, config, simulator);
         });
         timeEnd('Acting');
 
@@ -207,7 +207,7 @@ export const createSimulator = (
           creaturesNumber,
           totalEnergy: 0,
           state: config.generationGenomeLogFrequency && !(simulator.state.generation % config.generationGenomeLogFrequency)
-            ? simulator.cloneState({ pick: ['genomes', 'lastGenomes', 'creaturesData'] })
+            ? await simulator.cloneState({ pick: ['genomes', 'lastGenomes', 'creaturesData'] })
             : null,
         };
 
@@ -218,14 +218,14 @@ export const createSimulator = (
         creaturesNumber,
         creaturesWithEnergy,
         state: !simulator.state.step || logStepState
-          ? simulator.cloneState({ omit: ['genomes', 'lastGenomes'] })
+          ? await simulator.cloneState({ omit: ['genomes', 'lastGenomes'] })
           : null,
       };
       timeEnd('Logging step');
 
       time('Regrowing food');
       if (simulator.state.numberOfFood < config.foodRegrowLimit) {
-        simulator.state.numberOfFood += regrowFood(foodData, world, config, simulator.state.maxFoodIndex);
+        simulator.state.numberOfFood += await regrowFood(foodData, world, config, simulator.state.maxFoodIndex);
       }
       timeEnd('Regrowing food');
 
@@ -235,7 +235,7 @@ export const createSimulator = (
       simulator.stepCache = {};
     },
 
-    simulateGeneration: () => {
+    simulateGeneration: async () => {
       console.log('Simulating generation', simulator.state.generation);
       time('Gathering generation stats 1');
       // stats
@@ -243,16 +243,16 @@ export const createSimulator = (
       const timeStart = performance.now();
       const logGenerationState = config.generationGenomeLogFrequency && !(simulator.state.generation % config.generationGenomeLogFrequency);
       const clonedState = !simulator.state.generation || logGenerationState
-        ? simulator.cloneState({ pick: ['genomes', 'lastGenomes', 'creaturesData'] })
+        ? await simulator.cloneState({ pick: ['genomes', 'lastGenomes', 'creaturesData'] })
         : null;
       timeEnd('Gathering generation stats 1');
 
       time('Simulating generation steps');
       // simulating
       const logGenerationSteps = config.generationStepsLogFrequency && !(simulator.state.generation % config.generationStepsLogFrequency);
-      times(config.generationLength, (step) => {
+      await timesAsync(config.generationLength, async step => {
         if (simulator.state.step <= step) {
-          simulator.simulateStep(!simulator.state.generation || logGenerationSteps);
+          await simulator.simulateStep(!simulator.state.generation || logGenerationSteps);
         }
       });
       timeEnd('Simulating generation steps');
@@ -282,7 +282,7 @@ export const createSimulator = (
           reproductionProbability,
         } = resultCondition(creatureIndex, simulator.state.lastCreaturesData, config, simulator);
 
-        doWithProbability(reproductionProbability, () => {
+        await doWithProbabilityAsync(reproductionProbability, async () => {
           const numberOfOffspring = swich([
             [OFFSPRING_NUMBER_CALCULATION_TYPES.RANDOM, () =>
               randomInteger(config.minNumberOfOffspring, config.maxNumberOfOffspring)],
@@ -299,11 +299,11 @@ export const createSimulator = (
             numberOfCreaturesWithOffspring++;
           }
 
-          times(numberOfOffspring, () => {
+          await timesAsync(numberOfOffspring, async () => {
             if (newCreatureIndex > config.populationLimit) {
               return;
             }
-            createCreature({
+            await createCreature({
               index: newCreatureIndex++,
               parentIndex: creatureIndex,
               genomes,
@@ -321,14 +321,15 @@ export const createSimulator = (
       timeEnd('Reproducing creatures');
 
       time('Growing food');
-      simulator.state.maxFoodIndex = simulator.state.numberOfFood = growFood(foodData, world, config);
+      const newNumberOfFood = await growFood(foodData, world, config);
+      simulator.state.maxFoodIndex = simulator.state.numberOfFood = newNumberOfFood;
       timeEnd('Growing food');
 
       time('Repopulating creatures');
       // repopulating
       if (newCreatureIndex === 1 && config.repopulateWhenPopulationDiesOut) {
-        iterateOverRange(1, config.population, (index) => {
-          createCreature({
+        await iterateOverRangeAsync(1, config.population, async index => {
+          await createCreature({
             index,
             parentIndex: null,
             genomes,
@@ -376,19 +377,32 @@ export const createSimulator = (
     }
   };
 
+  // generated creatures validation
+  const {
+    // creaturesWithNoValidGenes,
+    // validCreaturesWithFirstGeneInvalid,
+    // creaturesWithSomeInvalidGenes,
+    creaturesWithValidGenes,
+  } = analyzeCreatures(config, simulator);
+
+  if (!creaturesWithValidGenes.length) {
+    throw new Error('No creatures with at least one gene valid');
+  }
+
+  // world data validator
+  worldDataValidator(simulator.state.world, simulator.state.creaturesData, simulator.state.foodData, simulator.config);
+
   return simulator;
 };
 
-const sensorsData = (creatureIndex: number, config: Config, simulator: Simulator): InputValues => {
+const sensorsData = async (creatureIndex: number, config: Config, simulator: Simulator): Promise<InputValues> => {
   const inputValues: InputValues = {};
   // TODO calculate only valid input neurons (should be minor improvement)
-  simulator.neurons.inputNeurons.forEach((inputNeuron) => {
-    // time(`sensor ${inputNeuron.label}`);
+  await forEachAsync(simulator.neurons.inputNeurons, async (inputNeuron) => {
     const { id, getValue } = inputNeuron;
     if (getValue) {
-      inputValues[id] = getValue(creatureIndex, config, simulator);
+      inputValues[id] = await getValue(creatureIndex, config, simulator);
     }
-    // timeEnd(`sensor ${inputNeuron.label}`);
   });
 
   return inputValues;

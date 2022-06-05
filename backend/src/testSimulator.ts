@@ -1,11 +1,14 @@
 import {
-  MAX_16_BIT_INTEGER, MAX_16_BIT_SIGNED_INTEGER, MIN_16_BIT_SIGNED_INTEGER,
+  MAX_16_BIT_INTEGER,
+  MAX_16_BIT_SIGNED_INTEGER,
+  MIN_16_BIT_SIGNED_INTEGER,
   MIN_INPUT_NEURON_ID,
-  MIN_INTERNAL_NEURON_ID, MIN_OUTPUT_NEURON_ID,
-  OFFSPRING_NUMBER_CALCULATION_TYPES
+  MIN_INTERNAL_NEURON_ID,
+  MIN_OUTPUT_NEURON_ID,
+  OFFSPRING_NUMBER_CALCULATION_TYPES,
 } from './constants';
 import { Config } from './config';
-import { generateNeurons } from './neuronsUtils';
+import { generateNeurons, getNeuronIdByLabel } from './neuronsUtils';
 import { CreaturesData, Simulator } from './types';
 import { createSimulator } from './simulator';
 import { clearDataStorage } from './memoryUtils';
@@ -13,9 +16,8 @@ import { getIndexFromCoordinates } from './arrayUtils';
 import { cleanGenome, getRawConnectionMap, traverseOutputNeurons } from './graphUtils';
 import { worldDataValidator } from './debugUtils';
 
-
 const internalNeurons = 1;
-export const testConfig = {
+export const testConfig: Config = {
   population: 5,
   generationLength: 2,
   genomeLength: 5,
@@ -23,7 +25,7 @@ export const testConfig = {
   worldSizeX: 128,
   worldSizeY: 128,
 
-  offspringCalculationType: OFFSPRING_NUMBER_CALCULATION_TYPES.FROM_ENERGY as keyof typeof OFFSPRING_NUMBER_CALCULATION_TYPES,
+  offspringCalculationType: OFFSPRING_NUMBER_CALCULATION_TYPES.FROM_ENERGY,
   minNumberOfOffspring: 2,
   maxNumberOfOffspring: 20,
 
@@ -42,9 +44,9 @@ export const testConfig = {
 
   foodSensorRange: 10,
 
-  maxInputNeuronId: MIN_INPUT_NEURON_ID + 8,
-  maxInternalNeuronId: MIN_INTERNAL_NEURON_ID + internalNeurons - 1,
-  maxOutputNeuronId: MIN_OUTPUT_NEURON_ID + 2,
+  maxInputNeuronId: 0,
+  maxInternalNeuronId: 0,
+  maxOutputNeuronId: 0,
 
   mutationProbabilityMatrix: {
     sourceId: 0.2,
@@ -56,8 +58,14 @@ export const testConfig = {
   stepLogFrequency: 1, // n % stepLogFrequency === 0 => log n-th step; 0 => logging disabled; first step is always logged
   generationStepsLogFrequency: 1, // n % generationStepsLogFrequency === 0 => log steps for n-th generation; 0 => logging disabled; first generation is always logged
   generationGenomeLogFrequency: 1, // n % generationLogFrequency === 0 => log genome for n-th generation; 0 => logging disabled; first generation is always logged
-} as unknown as Config;
+};
+
 const neuronsData = generateNeurons(testConfig);
+
+testConfig.maxInputNeuronId = MIN_INPUT_NEURON_ID + neuronsData.inputNeuronsIds.length - 1;
+testConfig.maxInternalNeuronId = MIN_INTERNAL_NEURON_ID + neuronsData.internalNeuronsIds.length - 1;
+testConfig.maxOutputNeuronId = MIN_OUTPUT_NEURON_ID + neuronsData.outputNeuronsIds.length - 1;
+
 const resultCondition = (creatureIndex: number, creaturesData: CreaturesData, config: Config, simulator: Simulator) => {
   return { reproductionProbability: 1 };
 };
@@ -77,7 +85,11 @@ export const testCreatures: TestCreature[] = [
     y: 120,
     energy: testConfig.initialEnergy,
     genome: [
-      { sourceId: 1, targetId: 66, weight: MIN_16_BIT_SIGNED_INTEGER },
+      {
+        sourceId: getNeuronIdByLabel(neuronsData, 'bias'),
+        targetId: getNeuronIdByLabel(neuronsData, 'moveVertical'),
+        weight: MIN_16_BIT_SIGNED_INTEGER,
+      },
       dummyConnection,
       dummyConnection,
       dummyConnection,
@@ -95,8 +107,16 @@ export const testCreatures: TestCreature[] = [
     y: 10,
     energy: testConfig.initialEnergy,
     genome: [
-      { sourceId: 1, targetId: 66, weight: MAX_16_BIT_SIGNED_INTEGER },
-      { sourceId: 1, targetId: 65, weight: MAX_16_BIT_SIGNED_INTEGER },
+      {
+        sourceId: getNeuronIdByLabel(neuronsData, 'bias'),
+        targetId: getNeuronIdByLabel(neuronsData, 'moveVertical'),
+        weight: MAX_16_BIT_SIGNED_INTEGER,
+      },
+      {
+        sourceId: getNeuronIdByLabel(neuronsData, 'bias'),
+        targetId: getNeuronIdByLabel(neuronsData, 'moveHorizontal'),
+        weight: MAX_16_BIT_SIGNED_INTEGER,
+      },
       dummyConnection,
       dummyConnection,
       dummyConnection,
@@ -113,9 +133,17 @@ export const testCreatures: TestCreature[] = [
     y: 20,
     energy: 0,
     genome: [
-      { sourceId: 1, targetId: 66, weight: MAX_16_BIT_SIGNED_INTEGER },
+      {
+        sourceId: getNeuronIdByLabel(neuronsData, 'bias'),
+        targetId: getNeuronIdByLabel(neuronsData, 'moveVertical'),
+        weight: MAX_16_BIT_SIGNED_INTEGER,
+      },
       // invalid connection
-      { sourceId: 1, targetId: 128, weight: 1 },
+      {
+        sourceId: getNeuronIdByLabel(neuronsData, 'bias'),
+        targetId: 128,
+        weight: 1,
+      },
       dummyConnection,
       dummyConnection,
       dummyConnection,
@@ -132,7 +160,11 @@ export const testCreatures: TestCreature[] = [
     y: 15,
     energy: Math.floor(0.01 * MAX_16_BIT_INTEGER),
     genome: [
-      { sourceId: 1, targetId: 65, weight: MAX_16_BIT_SIGNED_INTEGER },
+      {
+        sourceId: getNeuronIdByLabel(neuronsData, 'bias'),
+        targetId: getNeuronIdByLabel(neuronsData, 'moveHorizontal'),
+        weight: MAX_16_BIT_SIGNED_INTEGER,
+      },
       dummyConnection,
       dummyConnection,
       dummyConnection,
@@ -150,7 +182,11 @@ export const testCreatures: TestCreature[] = [
     y: 13, // start 2p away from food to avoid being in the same spot as 'eating food' creature
     energy: Math.floor(0.01 * MAX_16_BIT_INTEGER),
     genome: [
-      { sourceId: 1, targetId: 66, weight: MAX_16_BIT_SIGNED_INTEGER },
+      {
+        sourceId: getNeuronIdByLabel(neuronsData, 'bias'),
+        targetId: getNeuronIdByLabel(neuronsData, 'moveVertical'),
+        weight: MAX_16_BIT_SIGNED_INTEGER,
+      },
       dummyConnection,
       dummyConnection,
       dummyConnection,
@@ -171,8 +207,8 @@ export const testFood = [
 
 console.log('config', testConfig);
 
-export const createTestSimulator = () => {
-  const simulator = createSimulator(testConfig, neuronsData, resultCondition);
+export const createTestSimulator = async () => {
+  const simulator = await createSimulator(testConfig, neuronsData, resultCondition);
   clearDataStorage(simulator.state.genomes);
   clearDataStorage(simulator.state.world);
   clearDataStorage(simulator.state.creaturesData);

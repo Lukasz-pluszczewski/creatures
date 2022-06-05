@@ -22,7 +22,7 @@ type CreateCreatureParams = {
   neurons: NeuronsData,
   config: Config,
 };
-export const createCreature = (
+export const createCreature = async (
   {
     index,
     parentIndex,
@@ -34,7 +34,7 @@ export const createCreature = (
     neurons,
     config,
   }: CreateCreatureParams,
-): void => {
+): Promise<void> => {
   creaturesData.alive[index] = 1;
   creaturesData.x[index] = randomInteger(0, config.worldSizeX - 1);
   creaturesData.y[index] = randomInteger(0, config.worldSizeY - 1);

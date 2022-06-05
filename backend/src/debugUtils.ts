@@ -19,7 +19,7 @@ export const getTimer = ({ enableLogs = true } = {}) => {
         return;
       }
       if (timer.timerState[label]) {
-        throw new Error(`Timer "${label}" already started`);
+        throw new Error(`Timer "${label}" already started (${performance.now() - timer.timerState[label]}ms ago)`);
       }
       return timer.timerState[label] = performance.now();
     },

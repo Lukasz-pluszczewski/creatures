@@ -51,15 +51,15 @@ export const config = {
   },
   weightMultiplier: 0.0002, // weight can be in range [-32768 * weightMultiplier, 32767 * weightMultiplier]; [-6.55, 6.55]
 
-  stepLogFrequency: 1, // n % stepLogFrequency === 0 => log n-th step; 0 => logging disabled; first step is always logged
-  generationStepsLogFrequency: 1, // n % generationStepsLogFrequency === 0 => log steps for n-th generation; 0 => logging disabled; first generation is always logged
-  generationGenomeLogFrequency: 1, // n % generationLogFrequency === 0 => log genome for n-th generation; 0 => logging disabled; first generation is always logged
+  stepLogFrequency: 0, // n % stepLogFrequency === 0 => log n-th step; 0 => logging disabled; first step is always logged
+  generationStepsLogFrequency: 0, // n % generationStepsLogFrequency === 0 => log steps for n-th generation; 0 => logging disabled; first generation is always logged
+  generationGenomeLogFrequency: 0, // n % generationLogFrequency === 0 => log genome for n-th generation; 0 => logging disabled; first generation is always logged
 } as unknown as Config;
 const neuronsData = generateNeurons(config);
 
-config.maxInputNeuronId = MIN_INPUT_NEURON_ID + neuronsData.inputNeuronsIds.length;
-config.maxInternalNeuronId = MIN_INTERNAL_NEURON_ID + neuronsData.internalNeuronsIds.length;
-config.maxOutputNeuronId = MIN_OUTPUT_NEURON_ID + neuronsData.outputNeuronsIds.length;
+config.maxInputNeuronId = MIN_INPUT_NEURON_ID + neuronsData.inputNeuronsIds.length - 1;
+config.maxInternalNeuronId = MIN_INTERNAL_NEURON_ID + neuronsData.internalNeuronsIds.length - 1;
+config.maxOutputNeuronId = MIN_OUTPUT_NEURON_ID + neuronsData.outputNeuronsIds.length - 1;
 
 const resultCondition = (creatureIndex: number, creaturesData: CreaturesData, config: Config, simulator: Simulator) => {
   return { reproductionProbability: 1 };
@@ -81,26 +81,26 @@ const clearSimulatorMemory = (simulator: Simulator) => {
   simulator.generationsHistory = [];
 };
 
-export const runPerformanceTest = () => {
+export const runPerformanceTest = async () => {
   console.log('Starting performance test');
   console.log('  Generations to simulate:', performanceTestParams.generationsToSimulate);
   console.log('  Simulating with timers enabled:', performanceTestParams.enableTimers);
 
   console.log('');
-  console.log('Config:');
+  console.log('# Config:');
   console.log(config);
   console.log('');
 
   if (performanceTestParams.enableTimers) {
     console.log('Starting performance test with timers...');
     setEnableLogs(true);
-    const simulator = createSimulator(config, neuronsData, resultCondition);
+    const simulator = await createSimulator(config, neuronsData, resultCondition);
 
     const generationsTimes = {};
     time('Whole simulation (with timer)');
     for (let i = 0; i < performanceTestParams.generationsToSimulate; i++) {
       time('Simulating generation (with timer)');
-      simulator.simulateGeneration();
+      await simulator.simulateGeneration();
       generationsTimes[i] = timeEnd('Simulating generation (with timer)');
     }
     timeEnd('Whole simulation (with timer)');
@@ -122,13 +122,13 @@ export const runPerformanceTest = () => {
     console.log('Starting performance test without timers...');
     setEnableLogs(false);
     const { time, timeEnd, getTimeStats } = getTimer();
-    const simulator = createSimulator(config, neuronsData, resultCondition);
+    const simulator = await createSimulator(config, neuronsData, resultCondition);
 
     const generationsTimes = {};
     time('Whole simulation (with timer)');
     for (let i = 0; i < performanceTestParams.generationsToSimulate; i++) {
       time('Simulating generation (with timer)');
-      simulator.simulateGeneration();
+      await simulator.simulateGeneration();
       generationsTimes[i] = timeEnd('Simulating generation (with timer)');
     }
     timeEnd('Whole simulation (with timer)');

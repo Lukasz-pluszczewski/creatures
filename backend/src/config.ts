@@ -97,9 +97,9 @@ export const getConfig = (): Config => {
 
   const { inputNeuronsIds, internalNeuronsIds, outputNeuronsIds } = generateNeurons(config as Config);
 
-  config.maxInputNeuronId = MIN_INPUT_NEURON_ID + inputNeuronsIds.length;
-  config.maxInternalNeuronId = MIN_INTERNAL_NEURON_ID + internalNeuronsIds.length;
-  config.maxOutputNeuronId = MIN_OUTPUT_NEURON_ID + outputNeuronsIds.length;
+  config.maxInputNeuronId = MIN_INPUT_NEURON_ID + inputNeuronsIds.length - 1;
+  config.maxInternalNeuronId = MIN_INTERNAL_NEURON_ID + internalNeuronsIds.length - 1;
+  config.maxOutputNeuronId = MIN_OUTPUT_NEURON_ID + outputNeuronsIds.length - 1;
 
   return config;
 };

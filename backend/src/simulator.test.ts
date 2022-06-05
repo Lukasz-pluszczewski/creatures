@@ -1,7 +1,9 @@
-import { iterateOverRange, times } from './arrayUtils';
+import { iterateOverRange, times, timesAsync } from './arrayUtils';
 import { getRawConnectionMap, traverseOutputNeurons } from './graphUtils';
-import { genomeValidator, worldDataValidator } from './debugUtils';
+import { clearTimeStats, genomeValidator, worldDataValidator } from './debugUtils';
 import { createTestSimulator, testFood, testCreatures, testConfig } from './testSimulator';
+import { Simulator } from './types';
+import swich from 'swich';
 
 describe('test data', () => {
   it('is valid', () => {
@@ -9,9 +11,10 @@ describe('test data', () => {
   });
 });
 describe('simulator', () => {
-  let simulator;
-  beforeEach(() => {
-    simulator = createTestSimulator();
+  let simulator: Simulator;
+  beforeEach(async () => {
+    clearTimeStats();
+    simulator = await createTestSimulator();
   });
 
   describe('data storage', () => {
@@ -84,9 +87,9 @@ describe('simulator', () => {
       simulator.config.foodRegrowLimit = 0;
     });
     testCreatures.forEach((creature, index) => {
-      it(`simulates step of creature "${creature.label}"`, () => {
-        times(2, i => {
-          simulator.simulateStep();
+      it(`simulates step of creature "${creature.label}"`, async () => {
+        await timesAsync(2, async i => {
+          await simulator.simulateStep();
           expect(simulator.state.creaturesData.x[index + 1]).toBe(creature.expect[i].x);
           expect(simulator.state.creaturesData.y[index + 1]).toBe(creature.expect[i].y);
           expect(simulator.state.creaturesData.energy[index + 1]).toBe(creature.expect[i].energy);
@@ -97,9 +100,9 @@ describe('simulator', () => {
     });
   });
   describe('generation simulator', () => {
-    it('simulates generation', () => {
-      times(50, () => {
-        const result = simulator.simulateGeneration();
+    it('simulates generation', async () => {
+      await timesAsync(50, async () => {
+        const result = await simulator.simulateGeneration();
 
         expect(result).toBe(true);
         genomeValidator(
@@ -125,8 +128,8 @@ describe('simulator', () => {
       expect(clone).toEqual(source);
       expect(clone).not.toBe(source);
     });
-    it('clones whole state', () => {
-      const clonedState = simulator.cloneState();
+    it('clones whole state', async () => {
+      const clonedState = await simulator.cloneState();
       expect(clonedState).not.toBe(simulator.state);
 
       clonedState.genomes.sourceId.forEach((sourceId, index) => {
@@ -157,8 +160,8 @@ describe('simulator', () => {
       genomeValidator(clonedState.creaturesData, clonedState.genomes, simulator.config);
       worldDataValidator(clonedState.world, clonedState.creaturesData, clonedState.foodData, simulator.config);
     });
-    it('clones part of the state', () => {
-      const clonedState = simulator.cloneState({ pick: ['genomes'] });
+    it('clones part of the state', async () => {
+      const clonedState = await simulator.cloneState({ pick: ['genomes'] });
       expect(clonedState.genomes).not.toBe(simulator.state.genomes);
 
       clonedState.genomes.sourceId.forEach((sourceId, index) => {
@@ -178,10 +181,10 @@ describe('simulator', () => {
     });
   });
   describe('generation log', () => {
-    it('contains valid data', () => {
-      simulator.simulateGeneration();
-      simulator.simulateGeneration();
-      simulator.simulateGeneration();
+    it('contains valid data', async () => {
+      await simulator.simulateGeneration();
+      await simulator.simulateGeneration();
+      await simulator.simulateGeneration();
 
       times(3, generationIndex => {
         times(simulator.config.generationLength, stepIndex => {

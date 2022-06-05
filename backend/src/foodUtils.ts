@@ -1,10 +1,10 @@
-import { iterateOverRange, times } from './arrayUtils';
+import { iterateOverRange, iterateOverRangeAsync, times, timesAsync } from './arrayUtils';
 import { FoodData, WorldData } from './types';
 import { Config } from './config';
 
-export const growFood = (foodData: FoodData, world: WorldData, config: Config) => {
+export const growFood = async (foodData: FoodData, world: WorldData, config: Config) => {
   let foodIndex = 1;
-  times(config.worldSizeX * config.worldSizeY, index => {
+  await timesAsync(config.worldSizeX * config.worldSizeY, async index => {
     if (foodIndex < config.foodLimit && Math.random() < config.foodDensity) {
       if (world.food[index]) {
         throw new Error(`Trying to grow food that already exists in the world (index: ${index}, foodIndex: ${foodIndex})`);
@@ -22,9 +22,9 @@ export const growFood = (foodData: FoodData, world: WorldData, config: Config) =
   return foodIndex - 1;
 };
 
-export const regrowFood = (foodData: FoodData, world: WorldData, config: Config, maxFoodIndex: number) => {
+export const regrowFood = async (foodData: FoodData, world: WorldData, config: Config, maxFoodIndex: number) => {
   let newFoodNumber = 0;
-  iterateOverRange(1, maxFoodIndex, index => {
+  await iterateOverRangeAsync(1, maxFoodIndex, async index => {
     if (!foodData.energy[index]) {
       const worldIndex = foodData.y[index] * config.worldSizeX + foodData.x[index];
       world.food[worldIndex] = index;
