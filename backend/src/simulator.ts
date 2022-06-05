@@ -1,9 +1,14 @@
 import swich from 'swich';
-import cloneDeep from 'lodash.clonedeep';
 
-import { MAX_16_BIT_INTEGER, OFFSPRING_NUMBER_CALCULATION_TYPES } from './constants';
+import { OFFSPRING_NUMBER_CALCULATION_TYPES } from './constants';
 
-import { forEachAsync, iterateOverRange, iterateOverRangeAsync, times, timesAsync } from './arrayUtils';
+import {
+  forEachAsync, iterateOverRange,
+  iterateOverRangeAsync,
+  timesAsync,
+  untilTruthy,
+  untilTruthyAsync
+} from './arrayUtils';
 import { calculateGraph } from './graphUtils';
 import { createCreature } from './creatureUtils';
 import { clamp, mapNumberToDifferentRange, randomInteger } from './numberUtils';
@@ -14,13 +19,13 @@ import {
   createFoodDataStorage,
   createPopulationDataStorage
 } from './memoryUtils';
-import { doWithProbability, doWithProbabilityAsync } from './probabilityUtils';
+import { doWithProbabilityAsync } from './probabilityUtils';
 
 import { analyzeCreatures, genomeValidator, time, timeEnd, worldDataValidator } from './debugUtils';
 
 import { Config } from './config';
 import {
-  InputValues,
+  InputValues, Neuron,
   NeuronsData,
   Simulator,
   WorldData
@@ -169,40 +174,70 @@ export const createSimulator = async (
       const timeStart = performance.now();
 
       time('Simulating creatures');
+
+      time('Finding living creatures');
+      const aliveCreatures: boolean[] = [];
+      const calculatedData: {
+        inputValues?: InputValues,
+        outputValues?: { [neuronId: Neuron['id']]: number },
+      }[] = [];
       let creatureIndex = 1;
-      // there are no neurons with id = 0, so we assume that index with sourceId = 0 is just empty
       while (creaturesData.alive[creatureIndex] && creatureIndex <= config.populationLimit + 1) {
         creaturesNumber++;
         if (creaturesData.energy[creatureIndex] <= 0) {
-          // console.log('wat?', creatureIndex, creaturesData.energy[creatureIndex]);
           creatureIndex++;
-
           continue;
         }
-        time('Simulating creature');
+        calculatedData[creatureIndex] = {};
+        aliveCreatures[creatureIndex] = true;
+        creatureIndex++;
         creaturesWithEnergy++;
+      }
+      timeEnd('Finding living creatures');
 
+      time('Burning energy');
+      await forEachAsync(aliveCreatures, async (alive, creatureIndex) => {
+        if (!alive) {
+          return;
+        }
         creaturesData.energy[creatureIndex] =
           clamp(creaturesData.energy[creatureIndex] - config.stepEnergyCost, 0, config.maximumEnergy);
+      });
+      timeEnd('Burning energy');
 
-        time('Calculating sensors data');
-        const inputValues = await sensorsData(creatureIndex, config, simulator);
-        timeEnd('Calculating sensors data');
-        time('Calculating graph');
-        const outputValues = await calculateGraph(creatureIndex, inputValues, simulator);
-        timeEnd('Calculating graph');
+      time('Calculating sensors data');
+      await forEachAsync(aliveCreatures, async (alive, creatureIndex) => {
+        if (!alive) {
+          return;
+        }
+        calculatedData[creatureIndex].inputValues = await sensorsData(creatureIndex, config, simulator);
+      });
+      timeEnd('Calculating sensors data');
 
-        time('Acting');
-        await forEachAsync(Object.entries(outputValues), async ([neuronId, outputValue]) => {
+      time('Calculating graph');
+      await forEachAsync(aliveCreatures, async (alive, creatureIndex) => {
+        if (!alive) {
+          return;
+        }
+        calculatedData[creatureIndex].outputValues =
+          await calculateGraph(creatureIndex, calculatedData[creatureIndex].inputValues, simulator);
+      });
+      timeEnd('Calculating graph');
+
+      time('Acting');
+      await forEachAsync(aliveCreatures, async (alive, creatureIndex) => {
+        if (!alive) {
+          return;
+        }
+        await forEachAsync(Object.entries(calculatedData[creatureIndex].outputValues), async ([neuronId, outputValue]) => {
           const outputNeuron = simulator.neurons.neuronMap[parseInt(neuronId)];
           return outputNeuron.act(outputValue, creatureIndex, config, simulator);
         });
-        timeEnd('Acting');
+      });
+      timeEnd('Acting');
 
-        timeEnd('Simulating creature');
-        creatureIndex++;
-      }
       timeEnd('Simulating creatures');
+
       time('Logging step');
       simulator.generationsHistory[simulator.state.generation] =
         simulator.generationsHistory[simulator.state.generation] || {

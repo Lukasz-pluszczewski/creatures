@@ -187,7 +187,6 @@ describe('simulator', () => {
 
       times(3, generationIndex => {
         times(simulator.config.generationLength, stepIndex => {
-          console.log('generationIndex', generationIndex, 'stepIndex', stepIndex);
           genomeValidator(
             simulator.generationsHistory[generationIndex].stepHistory[stepIndex].state.creaturesData,
             simulator.generationsHistory[generationIndex].state.genomes,

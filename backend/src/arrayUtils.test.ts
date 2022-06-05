@@ -7,7 +7,10 @@ import {
   iterateOverRange,
   iterateOverRangeAsync,
   iterateOverRangeAsyncBatch,
-  forEachAsync, mapAsync,
+  forEachAsync,
+  mapAsync,
+  untilTruthy,
+  untilTruthyAsync,
 } from './arrayUtils';
 
 describe('arrayUtils', () => {
@@ -122,6 +125,30 @@ describe('arrayUtils', () => {
         }, value);
       }));
       expect(result).toEqual(array);
+    });
+  });
+
+  describe('untilTruthy', () => {
+    it('iterates over array as long as values are truthy', async () => {
+      const array = [false, true, 'true', 1, '', false, null, 10];
+      const result = [];
+      untilTruthy(array, index => {
+        result.push(index);
+      }, 1);
+      expect(result).toEqual([1, 2, 3]);
+    });
+  });
+  describe('untilTruthyAsync', () => {
+    it('iterates over array as long as values are truthy', async () => {
+      const array = [false, true, 'true', 1, '', false, null, 10];
+      const result = [];
+      await untilTruthyAsync(array, async (index) => new Promise(resolve => {
+        setTimeout(() => {
+          result.push(index);
+          resolve();
+        }, index * 10);
+      }), 1);
+      expect(result).toEqual([1, 2, 3]);
     });
   });
 });

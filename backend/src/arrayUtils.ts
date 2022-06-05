@@ -1,3 +1,5 @@
+import { TypedArray } from './types';
+
 export const createArray = (length: number) => Array(length).fill(0);
 
 export const push = <T>(arr: T[] = [], el: T) => {
@@ -110,4 +112,26 @@ export const batch = <T>(array: T[], batchLength: number): T[][] => {
     batches.push(batch);
   }
   return batches;
+};
+
+
+export const untilTruthy = (list: any[] | TypedArray, cb: (index: number) => void, startingIndex = 0) => {
+  console.log('untilTruthy', list, startingIndex);
+  let creatureIndex = startingIndex;
+  while (list[creatureIndex]) {
+    cb(creatureIndex);
+    creatureIndex++;
+  }
+
+  return creatureIndex - 1;
+};
+
+export const untilTruthyAsync = async (list: any[] | TypedArray, cb: (index: number) => Promise<void>, startingIndex = 0) => {
+  let creatureIndex = startingIndex;
+  while (list[creatureIndex]) {
+    await cb(creatureIndex);
+    creatureIndex++;
+  }
+
+  return creatureIndex - 1;
 };
