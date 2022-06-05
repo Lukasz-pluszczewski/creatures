@@ -3,6 +3,7 @@ import swich from 'swich';
 import { OFFSPRING_NUMBER_CALCULATION_TYPES } from './constants';
 
 import {
+  batch,
   forEachAsync, iterateOverRange,
   iterateOverRangeAsync,
   timesAsync,
@@ -31,12 +32,18 @@ import {
   WorldData
 } from './types';
 import { growFood, regrowFood } from './foodUtils';
+import { createPool, getCalculateSensorsWorkerPool } from './threadPooolUtils';
+import { getSharedTypedArray, getSimulatorStateWithBuffers } from './typedArraysUtils';
 
 export const createSimulator = async (
   config: Config,
   neurons: NeuronsData,
   resultCondition: Simulator['resultCondition']
 ): Promise<Simulator> => {
+  // creating thread pool
+  const calculateSensorsPool = await createPool(getCalculateSensorsWorkerPool);
+  await calculateSensorsPool.runOnAllWorkers('setConfig', [config]);
+
   // creating storage for creatures data
   const { genomes, creaturesData } = await createPopulationDataStorage(config, neurons);
   const { genomes: lastGenomes, creaturesData: lastCreaturesData } = await createPopulationDataStorage(config, neurons);
@@ -46,12 +53,12 @@ export const createSimulator = async (
 
   // creating world data with creatures and food positions
   const world: WorldData = {
-    creatures: new Uint16Array(config.worldSizeX * config.worldSizeY),
-    food: new Uint16Array(config.worldSizeX * config.worldSizeY),
+    creatures: getSharedTypedArray(config.worldSizeX * config.worldSizeY, Uint16Array),
+    food: getSharedTypedArray(config.worldSizeX * config.worldSizeY, Uint16Array),
   };
   const lastWorld: WorldData = {
-    creatures: new Uint16Array(config.worldSizeX * config.worldSizeY),
-    food: new Uint16Array(config.worldSizeX * config.worldSizeY),
+    creatures: getSharedTypedArray(config.worldSizeX * config.worldSizeY, Uint16Array),
+    food: getSharedTypedArray(config.worldSizeX * config.worldSizeY, Uint16Array),
   }
 
   // creating creatures
@@ -77,8 +84,6 @@ export const createSimulator = async (
     config,
     resultCondition,
     generationsHistory: [],
-    stepCache: {},
-    generationCache: {},
     state: {
       genomes,
       creaturesData,
@@ -89,6 +94,9 @@ export const createSimulator = async (
       foodData,
       maxFoodIndex,
       numberOfFood: maxFoodIndex,
+      stepCache: {
+        closestFood: getSharedTypedArray(config.worldSizeX * config.worldSizeY, Uint16Array),
+      },
       generation: 0,
       step: 0,
     },
@@ -112,13 +120,8 @@ export const createSimulator = async (
 
       return clonedState as Omit<Pick<Simulator['state'], TPick>, TOmit>;
     },
-    getStepCached: async (key: string, getter: () => any) => {
-      simulator.stepCache[key] = (key in simulator.stepCache) ? simulator.stepCache[key] : getter();
-      return simulator.stepCache[key];
-    },
-    getGenerationCached: async (key: string, getter: () => any) => {
-      simulator.generationCache[key] = (key in simulator.generationCache) ? simulator.generationCache[key] : getter();
-      return simulator.generationCache[key];
+    clearStepCache: async () => {
+      simulator.state.stepCache.closestFood.fill(0);
     },
     moveCreature: async (creatureIndex: number, x: number, y: number) => {
       const currentX = simulator.state.creaturesData.x[creatureIndex];
@@ -176,60 +179,72 @@ export const createSimulator = async (
       time('Simulating creatures');
 
       time('Finding living creatures');
-      const aliveCreatures: boolean[] = [];
-      const calculatedData: {
-        inputValues?: InputValues,
-        outputValues?: { [neuronId: Neuron['id']]: number },
-      }[] = [];
-      let creatureIndex = 1;
-      while (creaturesData.alive[creatureIndex] && creatureIndex <= config.populationLimit + 1) {
-        creaturesNumber++;
-        if (creaturesData.energy[creatureIndex] <= 0) {
+      const aliveCreatures: number[] = [];
+      let maxCreatureIndex = 0;
+      {
+        let creatureIndex = 1;
+        while (creaturesData.alive[creatureIndex] && creatureIndex <= config.populationLimit + 1) {
+          creaturesNumber++;
+          if (creaturesData.energy[creatureIndex] <= 0) {
+            creatureIndex++;
+            continue;
+          }
+          aliveCreatures.push(creatureIndex);
           creatureIndex++;
-          continue;
+          creaturesWithEnergy++;
         }
-        calculatedData[creatureIndex] = {};
-        aliveCreatures[creatureIndex] = true;
-        creatureIndex++;
-        creaturesWithEnergy++;
       }
       timeEnd('Finding living creatures');
 
+      time('Creating storage for data calculated by workers');
+      const calculatedInputValues: Float32Array = getSharedTypedArray(
+        (config.maxInputNeuronId + 1) * (creaturesNumber + 1),
+        Float32Array,
+      )
+      const calculatedOutputValues: { [neuronId: Neuron['id']]: number }[] = [];
+      timeEnd('Creating storage for data calculated by workers');
+
+
       time('Burning energy');
-      await forEachAsync(aliveCreatures, async (alive, creatureIndex) => {
-        if (!alive) {
-          return;
-        }
+      await forEachAsync(aliveCreatures, async (creatureIndex) => {
         creaturesData.energy[creatureIndex] =
           clamp(creaturesData.energy[creatureIndex] - config.stepEnergyCost, 0, config.maximumEnergy);
       });
       timeEnd('Burning energy');
 
       time('Calculating sensors data');
-      await forEachAsync(aliveCreatures, async (alive, creatureIndex) => {
-        if (!alive) {
-          return;
-        }
-        calculatedData[creatureIndex].inputValues = await sensorsData(creatureIndex, config, simulator);
+      const aliveCreaturesBatches = batch(aliveCreatures, 20);
+      const stateBuffers = getSimulatorStateWithBuffers(simulator.state);
+      calculatedInputValues[2] = 10;
+      aliveCreaturesBatches.forEach((aliveCreaturesBatch, batchIndex) => {
+        calculateSensorsPool.schedule(
+          'calculate',
+          batchIndex,
+          [aliveCreaturesBatch, calculatedInputValues.buffer, stateBuffers]
+        );
       });
+      await calculateSensorsPool.getResults();
+
+      // await forEachAsync(aliveCreatures, async (creatureIndex) => {
+      //   calculateSensorsPool.schedule('calculate', creatureIndex, [creatureIndex, simulator.state]);
+      //   // calculatedData[creatureIndex].inputValues = await sensorsData(creatureIndex, config, simulator);
+      // });
+      // const sensorsResults = await calculateSensorsPool.getResults();
+      // sensorsResults.forEach((results, creatureIndex) => {
+      //   calculatedData[creatureIndex].inputValues = results;
+      // });
       timeEnd('Calculating sensors data');
 
       time('Calculating graph');
-      await forEachAsync(aliveCreatures, async (alive, creatureIndex) => {
-        if (!alive) {
-          return;
-        }
-        calculatedData[creatureIndex].outputValues =
-          await calculateGraph(creatureIndex, calculatedData[creatureIndex].inputValues, simulator);
+      await forEachAsync(aliveCreatures, async (creatureIndex) => {
+        calculatedOutputValues[creatureIndex] =
+          await calculateGraph(creatureIndex, calculatedInputValues, simulator);
       });
       timeEnd('Calculating graph');
 
       time('Acting');
-      await forEachAsync(aliveCreatures, async (alive, creatureIndex) => {
-        if (!alive) {
-          return;
-        }
-        await forEachAsync(Object.entries(calculatedData[creatureIndex].outputValues), async ([neuronId, outputValue]) => {
+      await forEachAsync(aliveCreatures, async (creatureIndex) => {
+        await forEachAsync(Object.entries(calculatedOutputValues[creatureIndex]), async ([neuronId, outputValue]) => {
           const outputNeuron = simulator.neurons.neuronMap[parseInt(neuronId)];
           return outputNeuron.act(outputValue, creatureIndex, config, simulator);
         });
@@ -273,7 +288,7 @@ export const createSimulator = async (
 
       timeEnd('Step');
       simulator.state.step++;
-      simulator.stepCache = {};
+      await simulator.clearStepCache();
     },
 
     simulateGeneration: async () => {
@@ -406,7 +421,6 @@ export const createSimulator = async (
         );
       }
 
-      simulator.generationCache = {};
       simulator.state.generation++;
       simulator.state.step = 0;
 
@@ -434,17 +448,4 @@ export const createSimulator = async (
   worldDataValidator(simulator.state.world, simulator.state.creaturesData, simulator.state.foodData, simulator.config);
 
   return simulator;
-};
-
-const sensorsData = async (creatureIndex: number, config: Config, simulator: Simulator): Promise<InputValues> => {
-  const inputValues: InputValues = {};
-  // TODO calculate only valid input neurons (should be minor improvement)
-  await forEachAsync(simulator.neurons.inputNeurons, async (inputNeuron) => {
-    const { id, getValue } = inputNeuron;
-    if (getValue) {
-      inputValues[id] = await getValue(creatureIndex, config, simulator);
-    }
-  });
-
-  return inputValues;
 };

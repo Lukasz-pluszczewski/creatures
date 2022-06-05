@@ -19,33 +19,27 @@ export type GenomeView = {
   validConnection: boolean,
 }[];
 
-// data stored in traditional array, not accessed frequently, indexes start with 1
-export type CreaturesAdditionalData = {
-  ancestors: { generation: number, id: number }[],
-};
 
 // indexes start with 1
 export type CreaturesData = {
   alive: Int8Array,
-  validNeurons: Uint16Array | Uint8Array, // there are no neurons with id = 0
+  validNeurons: Uint8Array,
   energy: Uint16Array,
-  additionalData: CreaturesAdditionalData[],
-  y: Uint16Array | Uint8Array,
-  x: Uint16Array | Uint8Array,
+  y: Uint16Array,
+  x: Uint16Array,
 };
 export type CreatureDataView = {
   alive: boolean,
   validNeurons: number[],
   energy: number,
-  additionalData: CreaturesAdditionalData,
   y: number,
   x: number,
 };
 
 // indexes start with 1
 export type FoodData = {
-  y: Uint16Array | Uint8Array,
-  x: Uint16Array | Uint8Array,
+  y: Uint16Array,
+  x: Uint16Array,
   energy: Uint16Array,
 };
 export type FoodDataView = {
@@ -78,7 +72,7 @@ export type Neuron = {
   activation: (input: number) => number,
   output?: number,
   input?: number,
-  getValue?: (creatureIndex: number, config: Config, simulator: Simulator) => Promise<number>,
+  getValue?: (creatureIndex: number, config: Config, state: Simulator['state']) => Promise<number>,
   act?: (output: number, creatureIndex: number, config: Config, simulator: Simulator) => Promise<void>,
   type: number,
 };
@@ -101,7 +95,7 @@ export type NeuronsData = {
 
 };
 
-export type InputValues = { [inputNeuronId: number]: number };
+export type InputValues = Float32Array;
 
 // simulator
 export type GenerationHistoryEntry = {
@@ -131,6 +125,9 @@ export type Simulator = {
     lastCreaturesData: CreaturesData,
     lastGenomes: Genomes,
     foodData: FoodData,
+    stepCache: {
+      closestFood: Uint16Array,
+    },
     maxFoodIndex: number,
     numberOfFood: number,
     generation: number,
@@ -146,10 +143,7 @@ export type Simulator = {
     TPick extends keyof Simulator['state'] = keyof Simulator['state']
   >({ omit, pick }?: { omit?: TOmit[], pick?: TPick[] }) =>
     Promise<Omit<Pick<Simulator['state'], TPick>, TOmit>>,
-  stepCache: { [cacheKey: string]: any },
-  getStepCached: <T>(key: string, getter: () => Promise<T>) => Promise<T>,
-  generationCache: { [cacheKey: string]: any },
-  getGenerationCached: <T>(key: string, getter: () => T) => Promise<T>,
+  clearStepCache: () => Promise<void>,
   moveCreature: (creatureIndex: number, x: number, y: number) => Promise<void>,
   simulateStep: (generationStepLoggingEnabled?: boolean) => Promise<void>,
   simulateGeneration: () => Promise<boolean>,

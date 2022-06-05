@@ -137,7 +137,9 @@ export const calculateGraph = async (
     if (!validNeuronsMap.has(neuron.id)) {
       return;
     }
-    inputAndInternalNeuronsValuesMap[neuron.id] = neuron.activation(inputValues[neuron.id]);
+    inputAndInternalNeuronsValuesMap[neuron.id] = neuron.activation(
+      inputValues[creatureIndex * (simulator.config.maxInputNeuronId + 1) + neuron.id]
+    );
   });
 
   // calculating internal neurons

@@ -87,7 +87,7 @@ export const mapAsync = async <T, R>(list: T[], cb: (item: T, index: number) => 
     result.push(await cb(list[i], i));
   }
   return result;
-}
+};
 
 export const sample = <T>(list: T[]) => list[Math.floor(Math.random() * list.length)];
 
@@ -116,7 +116,6 @@ export const batch = <T>(array: T[], batchLength: number): T[][] => {
 
 
 export const untilTruthy = (list: any[] | TypedArray, cb: (index: number) => void, startingIndex = 0) => {
-  console.log('untilTruthy', list, startingIndex);
   let creatureIndex = startingIndex;
   while (list[creatureIndex]) {
     cb(creatureIndex);

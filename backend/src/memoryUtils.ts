@@ -1,7 +1,6 @@
 import { getSharedTypedArray } from './typedArraysUtils';
 import type { Config } from './config';
 import type {
-  CreaturesAdditionalData,
   CreaturesData,
   FoodData,
   Genomes,
@@ -26,19 +25,11 @@ export const createPopulationDataStorage = (
   // creating memory storage for creatures' data
   // creatures indexes start with 1
   const creaturesData = {
-    x: config.worldSizeX > 255
-      ? getSharedTypedArray((config.populationLimit + 1), Uint16Array)
-      : getSharedTypedArray((config.populationLimit + 1), Uint8Array),
-    y: config.worldSizeY > 255
-      ? getSharedTypedArray((config.populationLimit + 1), Uint16Array)
-      : getSharedTypedArray((config.populationLimit + 1), Uint8Array),
+    x: getSharedTypedArray((config.populationLimit + 1), Uint16Array),
+    y: getSharedTypedArray((config.populationLimit + 1), Uint16Array),
     validNeurons: getSharedTypedArray((config.populationLimit + 1) * neurons.numberOfNeurons, Uint8Array),
     energy: getSharedTypedArray((config.populationLimit + 1), Uint16Array),
     alive: getSharedTypedArray((config.populationLimit + 1), Int8Array),
-
-    // creating memory storage for creatures' additional data that is not accessed frequently
-    // creatures indexes start with 1
-    additionalData: [] as CreaturesAdditionalData[],
   };
 
   return { genomes, creaturesData };
@@ -82,12 +73,8 @@ export const createFoodDataStorage = (config: Config) => {
   // creating memory storage for food data
   // food indexes start with 1
   const foodData: FoodData = {
-    x: config.worldSizeX > 255
-      ? getSharedTypedArray(maxFoodNumber + 1, Uint16Array)
-      : getSharedTypedArray(maxFoodNumber + 1, Uint8Array),
-    y: config.worldSizeY > 255
-      ? getSharedTypedArray(maxFoodNumber + 1, Uint16Array)
-      : getSharedTypedArray(maxFoodNumber + 1, Uint8Array),
+    x: getSharedTypedArray(maxFoodNumber + 1, Uint16Array),
+    y: getSharedTypedArray(maxFoodNumber + 1, Uint16Array),
     energy: getSharedTypedArray(maxFoodNumber + 1, Uint16Array),
   };
 
