@@ -51,13 +51,9 @@ export const getLevel = (x: number, y: number, level: number, width: number, hei
 
 export const findClosestFood = (x, y, world: WorldData, foodData: FoodData, config: Config) => {
   let level = 1;
-  time('findClosestFood 1');
   let coordinatesAround = getLevel(x, y, level, config.worldSizeX, config.worldSizeY);
-  timeEnd('findClosestFood 1');
   let closestFoodIndex: number = null;
-  time('findClosestFood while');
   while (coordinatesAround.length && !closestFoodIndex) {
-    time('findClosestFood 2');
     coordinatesAround.forEach(([x, y]) => {
       const foodIndex = world.food[getIndexFromCoordinates(x, y, config.worldSizeX)];
       if (foodIndex) {
@@ -65,15 +61,10 @@ export const findClosestFood = (x, y, world: WorldData, foodData: FoodData, conf
       }
     });
 
-    timeEnd('findClosestFood 2');
-
-    // time('getLevel ' + level + 1);
     coordinatesAround = ++level <= config.foodSensorRange
       ? getLevel(x, y, level, config.worldSizeX, config.worldSizeY)
       : [];
-    // timeEnd('getLevel ' + level);
   }
-  timeEnd('findClosestFood while');
 
   return closestFoodIndex;
 };

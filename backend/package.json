@@ -6,6 +6,7 @@
   "main": "dist",
   "scripts": {
     "dev": "NODE_PATH=src ENV=development NODE_OPTIONS='--inspect' tsnd src/index.ts",
+    "perf": "NODE_PATH=src ENV=production NODE_OPTIONS='' tsnd src/testPerformance.ts",
     "start": "NODE_PATH=dist ENV=production node dist",
     "test": "jest"
   },

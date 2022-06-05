@@ -48,8 +48,6 @@ export type Config = {
   stepLogFrequency: number,
   generationStepsLogFrequency: number,
   generationGenomeLogFrequency: number,
-
-  enableLogs: boolean,
 };
 
 const internalNeurons = 2;
@@ -95,8 +93,6 @@ export const getConfig = (): Config => {
     stepLogFrequency: 1, // n % stepLogFrequency === 0 => log n-th step; 0 => logging disabled; first step is always logged
     generationStepsLogFrequency: 50, // n % generationStepsLogFrequency === 0 => log steps for n-th generation; 0 => logging disabled; first generation is always logged
     generationGenomeLogFrequency: 50, // n % generationLogFrequency === 0 => log genome for n-th generation; 0 => logging disabled; first generation is always logged
-
-    enableLogs: false,
   };
 
   const { inputNeuronsIds, internalNeuronsIds, outputNeuronsIds } = generateNeurons(config as Config);

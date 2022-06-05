@@ -156,15 +156,13 @@ export const createSimulator = (
       }
     },
     simulateStep: (generationStepLoggingEnabled = true) => {
-      time('step');
-      time('step stats');
+      time('Step');
       // stats
       let creaturesNumber = 0;
       let creaturesWithEnergy = 0;
       const timeStart = performance.now();
-      timeEnd('step stats');
 
-      time('step creatures');
+      time('Simulating creatures');
       let creatureIndex = 1;
       // there are no neurons with id = 0, so we assume that index with sourceId = 0 is just empty
       while (creaturesData.alive[creatureIndex] && creatureIndex <= config.populationLimit + 1) {
@@ -175,31 +173,31 @@ export const createSimulator = (
 
           continue;
         }
-        time('Step creature');
+        time('Simulating creature');
         creaturesWithEnergy++;
 
         creaturesData.energy[creatureIndex] =
           clamp(creaturesData.energy[creatureIndex] - config.stepEnergyCost, 0, config.maximumEnergy);
 
-        time('Step 1');
+        time('Calculating sensors data');
         const inputValues = sensorsData(creatureIndex, config, simulator);
-        timeEnd('Step 1');
-        time('Step 2');
+        timeEnd('Calculating sensors data');
+        time('Calculating graph');
         const outputValues = calculateGraph(creatureIndex, inputValues, simulator);
-        timeEnd('Step 2');
+        timeEnd('Calculating graph');
 
-        time('Step 3');
+        time('Acting');
         Object.entries(outputValues).forEach(([neuronId, outputValue]) => {
           const outputNeuron = simulator.neurons.neuronMap[parseInt(neuronId)];
           outputNeuron.act(outputValue, creatureIndex, config, simulator);
         });
-        timeEnd('Step 3');
+        timeEnd('Acting');
 
-        timeEnd('Step creature');
+        timeEnd('Simulating creature');
         creatureIndex++;
       }
-      timeEnd('step creatures');
-      time('Step 4');
+      timeEnd('Simulating creatures');
+      time('Logging step');
       simulator.generationsHistory[simulator.state.generation] =
         simulator.generationsHistory[simulator.state.generation] || {
           stepHistory: [],
@@ -223,22 +221,23 @@ export const createSimulator = (
           ? simulator.cloneState({ omit: ['genomes', 'lastGenomes'] })
           : null,
       };
-      timeEnd('Step 4');
+      timeEnd('Logging step');
 
-      time('step 5');
+      time('Regrowing food');
       if (simulator.state.numberOfFood < config.foodRegrowLimit) {
         simulator.state.numberOfFood += regrowFood(foodData, world, config, simulator.state.maxFoodIndex);
       }
-      timeEnd('step 5');
+      timeEnd('Regrowing food');
 
 
-      timeEnd('step');
+      timeEnd('Step');
       simulator.state.step++;
       simulator.stepCache = {};
     },
 
     simulateGeneration: () => {
-      time('1');
+      console.log('Simulating generation', simulator.state.generation);
+      time('Gathering generation stats 1');
       // stats
       let totalEnergy = 0;
       const timeStart = performance.now();
@@ -246,9 +245,9 @@ export const createSimulator = (
       const clonedState = !simulator.state.generation || logGenerationState
         ? simulator.cloneState({ pick: ['genomes', 'lastGenomes', 'creaturesData'] })
         : null;
-      timeEnd('1');
+      timeEnd('Gathering generation stats 1');
 
-      time('1.5');
+      time('Simulating generation steps');
       // simulating
       const logGenerationSteps = config.generationStepsLogFrequency && !(simulator.state.generation % config.generationStepsLogFrequency);
       times(config.generationLength, (step) => {
@@ -256,24 +255,24 @@ export const createSimulator = (
           simulator.simulateStep(!simulator.state.generation || logGenerationSteps);
         }
       });
-      timeEnd('1.5');
+      timeEnd('Simulating generation steps');
 
-      time('2');
+      time('Moving state to "previous generation" storage');
       // moving creatures to "previous generation" storage
       copyDataStorage(simulator.state.genomes, simulator.state.lastGenomes);
       copyDataStorage(simulator.state.creaturesData, simulator.state.lastCreaturesData);
       copyDataStorage(simulator.state.world, simulator.state.lastWorld);
-      timeEnd('2');
+      timeEnd('Moving state to "previous generation" storage');
 
-      time('3');
+      time('Clearing current state');
       // clearing up current generation to make room for next one
       clearDataStorage(simulator.state.genomes);
       clearDataStorage(simulator.state.creaturesData);
       clearDataStorage(simulator.state.world);
       clearDataStorage(simulator.state.foodData);
-      timeEnd('3');
+      timeEnd('Clearing current state');
 
-      time('4');
+      time('Reproducing creatures');
       let creatureIndex = 1;
       let newCreatureIndex = 1;
       let numberOfCreaturesWithOffspring = 0;
@@ -319,13 +318,13 @@ export const createSimulator = (
         });
         creatureIndex++;
       }
-      timeEnd('4');
+      timeEnd('Reproducing creatures');
 
-      time('5');
+      time('Growing food');
       simulator.state.maxFoodIndex = simulator.state.numberOfFood = growFood(foodData, world, config);
-      timeEnd('5');
+      timeEnd('Growing food');
 
-      time('6');
+      time('Repopulating creatures');
       // repopulating
       if (newCreatureIndex === 1 && config.repopulateWhenPopulationDiesOut) {
         iterateOverRange(1, config.population, (index) => {
@@ -342,10 +341,10 @@ export const createSimulator = (
           });
         })
       }
-      timeEnd('6');
+      timeEnd('Repopulating creatures');
       genomeValidator(simulator.state.creaturesData, simulator.state.genomes, simulator.config);
 
-      time('7');
+      time('Gathering generation stats 2');
       // stats
 
       simulator.generationsHistory[simulator.state.generation].timeStart = timeStart;
@@ -369,7 +368,7 @@ export const createSimulator = (
       simulator.state.generation++;
       simulator.state.step = 0;
 
-      timeEnd('7');
+      timeEnd('Gathering generation stats 2');
       if (newCreatureIndex === 1 && !config.repopulateWhenPopulationDiesOut) {
         return false;
       }

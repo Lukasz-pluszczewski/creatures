@@ -109,14 +109,14 @@ const simulateGenerations = (number: number) => {
       lastTime = now;
       lastIndex = index;
     }
-    console.log('Generation', index);
+
     return simulator.simulateGeneration();
   });
   console.timeEnd(`Simulated ${number} generations`);
   console.log(`(ave: ${(number * 1000 / (performance.now() - timeStart)).toFixed(2)} per second)`);
 };
 
-simulateGenerations(1000);
+// simulateGenerations(1);
 
 simpleExpress({
   port: 8080,

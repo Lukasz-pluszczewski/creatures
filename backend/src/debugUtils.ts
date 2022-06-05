@@ -8,9 +8,73 @@ export const saveToFile = (name, data) => {
   return fs.writeFileSync(`./${name}.json`, JSON.stringify(data, null, 2));
 };
 
-const enableLogs = false;
-export const time = (label) => enableLogs ? console.time(label) : null;
-export const timeEnd = (label) => enableLogs ? console.timeEnd(label) : null;
+export const getTimer = ({ enableLogs = true } = {}) => {
+  const timer = {
+    enableLogs,
+    timerState: {},
+    timeStats: {} as Record<string, { total: number, count: number }>,
+    setEnableLogs: (enable: boolean) => timer.enableLogs = enable,
+    time: (label: string) => {
+      if (!timer.enableLogs) {
+        return;
+      }
+      if (timer.timerState[label]) {
+        throw new Error(`Timer "${label}" already started`);
+      }
+      return timer.timerState[label] = performance.now();
+    },
+    timeEnd: (label: string) => {
+      if (!timer.enableLogs) {
+        return;
+      }
+      if (!timer.timerState[label]) {
+        throw new Error(`Timer "${label}" not started`);
+      }
+      const time = performance.now() - timer.timerState[label];
+      timer.timeStats[label] = timer.timeStats[label] || { total: 0, count: 0 };
+      timer.timeStats[label].total += time;
+      timer.timeStats[label].count++;
+      delete timer.timerState[label];
+
+      return time;
+    },
+    getTimeStats: (
+      additionalTimeAverages: Record<string, number> = {},
+      additionalCountAverages: Record<string, number> = {}
+    ) => {
+      return Object.entries(timer.timeStats).reduce((accu, [key, value]) => {
+        accu[key] = {
+          ...value,
+          average: value.total / value.count,
+          perSecond: 1000 * value.count / value.total,
+          ...(Object.entries(additionalTimeAverages).reduce((accu, [name, count]) => {
+            accu[name] = value.total / count;
+            return accu;
+          }, {})),
+          ...(Object.entries(additionalCountAverages).reduce((accu, [name, count]) => {
+            accu[name] = value.count / count;
+            return accu;
+          }, {})),
+        };
+
+        return accu;
+      }, {})
+    },
+    clearTimeStats: () => {
+      Object.keys(timer.timeStats).forEach(key => {
+        delete timer.timeStats[key];
+      });
+    }
+  };
+
+  return timer;
+};
+export const timer = getTimer();
+export const setEnableLogs = timer.setEnableLogs;
+export const time = timer.time;
+export const timeEnd = timer.timeEnd;
+export const getTimeStats = timer.getTimeStats;
+export const clearTimeStats = timer.clearTimeStats;
 
 export const once = cb => {
   if (!once.state.triggered) {
