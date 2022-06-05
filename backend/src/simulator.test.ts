@@ -3,7 +3,6 @@ import { getRawConnectionMap, traverseOutputNeurons } from './graphUtils';
 import { clearTimeStats, genomeValidator, worldDataValidator } from './debugUtils';
 import { createTestSimulator, testFood, testCreatures, testConfig } from './testSimulator';
 import { Simulator } from './types';
-import swich from 'swich';
 
 describe('test data', () => {
   it('is valid', () => {
@@ -188,6 +187,7 @@ describe('simulator', () => {
 
       times(3, generationIndex => {
         times(simulator.config.generationLength, stepIndex => {
+          console.log('generationIndex', generationIndex, 'stepIndex', stepIndex);
           genomeValidator(
             simulator.generationsHistory[generationIndex].stepHistory[stepIndex].state.creaturesData,
             simulator.generationsHistory[generationIndex].state.genomes,

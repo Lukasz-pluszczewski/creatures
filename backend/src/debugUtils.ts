@@ -129,6 +129,7 @@ export const worldDataValidator = (world: WorldData, creaturesData: CreaturesDat
 
     const worldIndex = getIndexFromCoordinates(x, y, config.worldSizeX);
     if (world.food[worldIndex] !== index) {
+      console.log(world.food);
       throw new Error(`Food not in world (index: ${index}, worldIndex: ${worldIndex}, x: ${x}, y: ${y}, foundInWorld: ${world.food[worldIndex]})`);
     }
   });

@@ -1,6 +1,6 @@
 {
   "name": "creatures",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Evolving creatures",
   "repository": "",
   "main": "dist",
@@ -8,7 +8,8 @@
     "dev": "NODE_PATH=src ENV=development NODE_OPTIONS='--inspect' tsnd src/index.ts",
     "perf": "NODE_PATH=src ENV=production NODE_OPTIONS='' tsnd src/testPerformance.ts",
     "start": "NODE_PATH=dist ENV=production node dist",
-    "test": "jest"
+    "test": "jest",
+    "workerTest": "NODE_PATH=src ENV=production NODE_OPTIONS='' tsnd src/workersTest.ts"
   },
   "author": "Łukasz Pluszczewski",
   "license": "MIT",
@@ -30,6 +31,7 @@
     "simple-express-framework": "^2.3.0",
     "string-similarity": "^4.0.4",
     "swich": "^1.2.0",
+    "threads": "^1.7.0",
     "tsd": "^0.20.0"
   }
 }

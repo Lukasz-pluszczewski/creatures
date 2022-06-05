@@ -1,6 +1,7 @@
 import { Config } from './config';
 
 export type TypedArray = Uint8Array | Uint16Array | Uint32Array | Uint8ClampedArray | Int8Array | Int16Array | Int32Array | Float32Array | Float64Array;
+export type TypedArrayConstructor = Uint8ArrayConstructor | Uint16ArrayConstructor | Uint32ArrayConstructor | Uint8ClampedArrayConstructor | Int8ArrayConstructor | Int16ArrayConstructor | Int32ArrayConstructor | Float32ArrayConstructor | Float64ArrayConstructor;
 export const isTypedArray = (value: any): value is TypedArray =>
   ArrayBuffer.isView(value) && !(value instanceof DataView);
 
