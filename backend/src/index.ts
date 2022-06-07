@@ -8,6 +8,9 @@ import { clamp, mapNumberToDifferentRange } from './numberUtils';
 import { getCreaturesDataView, getFoodDataView, getGenomesView } from './objectUtils';
 import { analyzeCreatures, genomeValidator, worldDataValidator } from './debugUtils';
 
+// import { createSimulator } from './testSimulators/alpha';
+// import { createSimulator } from './testSimulators/beta';
+
 const config = getConfig();
 
 const neuronsData = generateNeurons(config);
@@ -72,11 +75,15 @@ const resultCondition = (creatureIndex: number, creaturesData: CreaturesData, co
 
 let simulator: Simulator;
 const newSimulator = () => {
+  // normal simulator
   simulator = createSimulator(
     config,
     neuronsData,
     resultCondition
   );
+
+  // custom populated simulator for test purposes
+  // simulator = createSimulator();
 
   // generated creatures validation
   const {
@@ -84,8 +91,7 @@ const newSimulator = () => {
     // validCreaturesWithFirstGeneInvalid,
     // creaturesWithSomeInvalidGenes,
     creaturesWithValidGenes,
-  } = analyzeCreatures(config, simulator);
-
+  } = analyzeCreatures(simulator.config, simulator);
   if (!creaturesWithValidGenes.length) {
     throw new Error('No creatures with at least one gene valid');
   }
@@ -127,7 +133,7 @@ simpleExpress({
         const genomesView = getGenomesView(simulator.state.creaturesData, simulator.state.genomes, simulator.config);
 
         const results = {
-          config,
+          config: simulator.config,
           current: {
             creaturesData: creaturesDataView,
             genomes: genomesView,
@@ -224,7 +230,7 @@ simpleExpress({
                 genomes: getGenomesView(
                   generation.state.creaturesData,
                   generation.state.genomes,
-                  config
+                  simulator.config
                 ),
                 creaturesData: generation?.state?.creaturesData
                   ? getCreaturesDataView(generation.state.creaturesData, simulator.neurons)

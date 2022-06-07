@@ -1,7 +1,17 @@
 import { iterateOverRange, times } from './arrayUtils';
 import { getRawConnectionMap, traverseOutputNeurons } from './graphUtils';
 import { genomeValidator, worldDataValidator } from './debugUtils';
-import { createTestSimulator, testFood, testCreatures, testConfig } from './testSimulator';
+import {
+  createTestSimulator,
+  resultCondition,
+  testFood as getTestFood,
+  testCreatures as getTestCreatures,
+  testConfig,
+} from './testSimulator';
+import { generateNeurons } from './neuronsUtils';
+
+const testCreatures = getTestCreatures(testConfig, generateNeurons(testConfig));
+const testFood = getTestFood(testConfig);
 
 describe('test data', () => {
   it('is valid', () => {
@@ -11,7 +21,7 @@ describe('test data', () => {
 describe('simulator', () => {
   let simulator;
   beforeEach(() => {
-    simulator = createTestSimulator();
+    simulator = createTestSimulator(testConfig, resultCondition, testCreatures, testFood);
   });
 
   describe('data storage', () => {

@@ -207,3 +207,16 @@ export const generateNeurons = (config: Config): NeuronsData => {
     numberOfPossibleTargetNeurons: Object.keys(possibleConnectionsTo).length,
   };
 };
+
+export const getNeuronIdByLabel = (neuronsData: NeuronsData, labelToFind: string) => {
+  const neurons = [
+    ...neuronsData.inputNeurons,
+    ...neuronsData.internalNeurons,
+    ...neuronsData.outputNeurons,
+  ];
+  const id = neurons.find(({ label }) => labelToFind === label.split('[')[0])?.id;
+  if (!id) {
+    throw new Error(`Neuron ${labelToFind} not found. Available labels: ${neurons.map(({ label }) => label).join(', ')}`);
+  }
+  return id;
+}

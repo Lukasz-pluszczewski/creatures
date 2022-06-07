@@ -51,7 +51,7 @@ export type Config = {
 };
 
 const internalNeurons = 2;
-export const getConfig = (): Config => {
+export const getConfig = (userConfig: Partial<Config> = {}): Config => {
   const config: Config = {
     population: 100,
     generationLength: 1000,
@@ -93,9 +93,11 @@ export const getConfig = (): Config => {
     stepLogFrequency: 1, // n % stepLogFrequency === 0 => log n-th step; 0 => logging disabled; first step is always logged
     generationStepsLogFrequency: 50, // n % generationStepsLogFrequency === 0 => log steps for n-th generation; 0 => logging disabled; first generation is always logged
     generationGenomeLogFrequency: 50, // n % generationLogFrequency === 0 => log genome for n-th generation; 0 => logging disabled; first generation is always logged
+
+    ...userConfig,
   };
 
-  const { inputNeuronsIds, internalNeuronsIds, outputNeuronsIds } = generateNeurons(config as Config);
+  const { inputNeuronsIds, internalNeuronsIds, outputNeuronsIds } = generateNeurons(config);
 
   config.maxInputNeuronId = MIN_INPUT_NEURON_ID + inputNeuronsIds.length;
   config.maxInternalNeuronId = MIN_INTERNAL_NEURON_ID + internalNeuronsIds.length;
