@@ -81,6 +81,12 @@ export const forEachAsync = async <T>(list: T[], cb: (item: T, index: number) =>
   }
 };
 
+export const forEach = <T>(list: T[], cb: (item: T, index: number) => void) => {
+  for (let i = 0; i < list.length; i++) {
+    cb(list[i], i);
+  }
+};
+
 export const mapAsync = async <T, R>(list: T[], cb: (item: T, index: number) => Promise<R>) => {
   const result = [];
   for (let i = 0; i < list.length; i++) {

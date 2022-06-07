@@ -72,7 +72,7 @@ export type Neuron = {
   activation: (input: number) => number,
   output?: number,
   input?: number,
-  getValue?: (creatureIndex: number, config: Config, state: Simulator['state']) => Promise<number>,
+  getValue?: (creatureIndex: number, config: Config, state: Simulator['state']) => number,
   act?: (output: number, creatureIndex: number, config: Config, simulator: Simulator) => Promise<void>,
   type: number,
 };
@@ -133,6 +133,7 @@ export type Simulator = {
     generation: number,
     step: number,
   },
+  stateBuffers: any, // TODO add state with buffers type
   neurons: NeuronsData,
   config: Config,
   resultCondition: (creatureIndex: number, creaturesData: CreaturesData, config: Config, simulator: Simulator) => ({

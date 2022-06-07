@@ -113,7 +113,7 @@ export const cleanGenome = (
   });
 };
 
-export const calculateGraph = async (
+export const calculateGraph = (
   creatureIndex: number,
   inputValues: InputValues,
   simulator: Simulator,

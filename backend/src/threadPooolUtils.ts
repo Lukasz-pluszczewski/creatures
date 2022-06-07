@@ -3,17 +3,16 @@ import type { Pool as PoolType, ModuleThread as ModuleThreadType } from 'threads
 import { Config } from './config';
 import { Neuron, Simulator } from './types';
 import { Worker as WorkerType } from './workers/calculateSensorsData';
+import { PoolOptions } from 'threads/dist/master/pool';
 
-export const getCalculateSensorsWorkerPool = async () => {
+export const getCalculateSensorsWorkerPool = async (options: number | PoolOptions = 8) => {
   return Pool(
     () => spawn<WorkerType>(new Worker('./workers/calculateSensorsData')),
-    8
+    options
   );
 }
 
-export const createPool = async <
-  TWorker extends { [methodName: string]: (...args: any) => any }
->(
+export const createPool = async <TWorker extends { [methodName: string]: (...args: any) => any }>(
   getWorkerPool: () => Promise<PoolType<ModuleThreadType<TWorker>>>
 ) => {
   const workerPool = await getWorkerPool();

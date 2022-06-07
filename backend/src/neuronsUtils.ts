@@ -23,35 +23,35 @@ export const generateNeurons = (config: Config): NeuronsData => {
   const inputNeurons: Neuron[] = [
     {
       label: `bias`,
-      getValue: async () => 1,
+      getValue: () => 1,
     },
     {
       label: 'northWallDistance',
-      getValue: async (creatureIndex: number, config: Config, state: Simulator['state']) =>
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) =>
         (config.worldSizeY - state.creaturesData.y[creatureIndex]) / config.worldSizeY,
     },
     {
       label: 'eastWallDistance',
-      getValue: async (creatureIndex: number, config: Config, state: Simulator['state']) =>
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) =>
         (config.worldSizeX - state.creaturesData.x[creatureIndex]) / config.worldSizeX,
     },
     {
       label: 'southWallDistance',
-      getValue: async (creatureIndex: number, config: Config, state: Simulator['state']) =>
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) =>
         state.creaturesData.y[creatureIndex] / config.worldSizeY,
     },
     {
       label: 'westWallDistance',
-      getValue: async (creatureIndex: number, config: Config, state: Simulator['state']) =>
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) =>
         state.creaturesData.x[creatureIndex] / config.worldSizeX,
     },
     {
       label: 'closestFoodHorizontalDistance',
-      getValue: async (creatureIndex: number, config: Config, state: Simulator['state']) => {
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) => {
         const x = state.creaturesData.x[creatureIndex];
         const y = state.creaturesData.y[creatureIndex];
 
-        const closestFoodIndex = await getCachedValue(
+        const closestFoodIndex = getCachedValue(
           state.stepCache.closestFood,
           x * config.worldSizeY + y,
           async () => findClosestFood(x, y, state.world, state.foodData, config),
@@ -65,11 +65,11 @@ export const generateNeurons = (config: Config): NeuronsData => {
     },
     {
       label: 'closestFoodVerticalDistance',
-      getValue: async (creatureIndex: number, config: Config, state: Simulator['state']) => {
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) => {
         const x = state.creaturesData.x[creatureIndex];
         const y = state.creaturesData.y[creatureIndex];
 
-        const closestFoodIndex = await getCachedValue(
+        const closestFoodIndex = getCachedValue(
           state.stepCache.closestFood,
           x * config.worldSizeY + y,
           async () => findClosestFood(x, y, state.world, state.foodData, config),
@@ -83,17 +83,17 @@ export const generateNeurons = (config: Config): NeuronsData => {
     },
     {
       label: 'energy',
-      getValue: async (creatureIndex: number, config: Config, state: Simulator['state']) =>
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) =>
         state.creaturesData.energy[creatureIndex],
     },
     {
       label: 'age',
-      getValue: async (creatureIndex: number, config: Config, state: Simulator['state']) =>
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) =>
         state.step / config.generationLength,
     },
     {
       label: `random`,
-      getValue: async () => (Math.random() * 2 - 1),
+      getValue: () => (Math.random() * 2 - 1),
     },
   ].map((neuron, index) => {
     const id = MIN_INPUT_NEURON_ID + index;

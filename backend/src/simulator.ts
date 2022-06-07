@@ -4,6 +4,7 @@ import { OFFSPRING_NUMBER_CALCULATION_TYPES } from './constants';
 
 import {
   batch,
+  forEach,
   forEachAsync, iterateOverRange,
   iterateOverRangeAsync,
   timesAsync,
@@ -79,27 +80,31 @@ export const createSimulator = async (
   // creating food
   const maxFoodIndex = await growFood(foodData, world, config);
 
+  const state = {
+    genomes,
+    creaturesData,
+    world,
+    lastGenomes,
+    lastCreaturesData,
+    lastWorld,
+    foodData,
+    maxFoodIndex,
+    numberOfFood: maxFoodIndex,
+    stepCache: {
+      closestFood: getSharedTypedArray(config.worldSizeX * config.worldSizeY, Uint16Array),
+    },
+    generation: 0,
+    step: 0,
+  };
+  const stateBuffers = getSimulatorStateWithBuffers(state);
+
   const simulator: Simulator = {
     neurons,
     config,
     resultCondition,
     generationsHistory: [],
-    state: {
-      genomes,
-      creaturesData,
-      world,
-      lastGenomes,
-      lastCreaturesData,
-      lastWorld,
-      foodData,
-      maxFoodIndex,
-      numberOfFood: maxFoodIndex,
-      stepCache: {
-        closestFood: getSharedTypedArray(config.worldSizeX * config.worldSizeY, Uint16Array),
-      },
-      generation: 0,
-      step: 0,
-    },
+    state,
+    stateBuffers,
     cloneState: async <
       TOmit extends keyof Simulator['state'] = never,
       TPick extends keyof Simulator['state'] = keyof Simulator['state']
@@ -206,16 +211,19 @@ export const createSimulator = async (
 
 
       time('Burning energy');
-      await forEachAsync(aliveCreatures, async (creatureIndex) => {
+      forEach(aliveCreatures, (creatureIndex) => {
         creaturesData.energy[creatureIndex] =
           clamp(creaturesData.energy[creatureIndex] - config.stepEnergyCost, 0, config.maximumEnergy);
       });
       timeEnd('Burning energy');
 
       time('Calculating sensors data');
-      const aliveCreaturesBatches = batch(aliveCreatures, 20);
-      const stateBuffers = getSimulatorStateWithBuffers(simulator.state);
-      calculatedInputValues[2] = 10;
+      time('Creating batches');
+      const aliveCreaturesBatches = batch(aliveCreatures, 30);
+      timeEnd('Creating batches');
+      time('Converting state to buffers');
+      timeEnd('Converting state to buffers');
+      time('Scheduling workers tasks');
       aliveCreaturesBatches.forEach((aliveCreaturesBatch, batchIndex) => {
         calculateSensorsPool.schedule(
           'calculate',
@@ -223,7 +231,10 @@ export const createSimulator = async (
           [aliveCreaturesBatch, calculatedInputValues.buffer, stateBuffers]
         );
       });
+      timeEnd('Scheduling workers tasks');
+      time('Waiting for results');
       await calculateSensorsPool.getResults();
+      timeEnd('Waiting for results');
 
       // await forEachAsync(aliveCreatures, async (creatureIndex) => {
       //   calculateSensorsPool.schedule('calculate', creatureIndex, [creatureIndex, simulator.state]);
@@ -236,15 +247,14 @@ export const createSimulator = async (
       timeEnd('Calculating sensors data');
 
       time('Calculating graph');
-      await forEachAsync(aliveCreatures, async (creatureIndex) => {
-        calculatedOutputValues[creatureIndex] =
-          await calculateGraph(creatureIndex, calculatedInputValues, simulator);
+      forEach(aliveCreatures, creatureIndex => {
+        calculatedOutputValues[creatureIndex] = calculateGraph(creatureIndex, calculatedInputValues, simulator);
       });
       timeEnd('Calculating graph');
 
       time('Acting');
-      await forEachAsync(aliveCreatures, async (creatureIndex) => {
-        await forEachAsync(Object.entries(calculatedOutputValues[creatureIndex]), async ([neuronId, outputValue]) => {
+      forEach(aliveCreatures, creatureIndex => {
+        forEach(Object.entries(calculatedOutputValues[creatureIndex]), async ([neuronId, outputValue]) => {
           const outputNeuron = simulator.neurons.neuronMap[parseInt(neuronId)];
           return outputNeuron.act(outputValue, creatureIndex, config, simulator);
         });
@@ -281,7 +291,7 @@ export const createSimulator = async (
 
       time('Regrowing food');
       if (simulator.state.numberOfFood < config.foodRegrowLimit) {
-        simulator.state.numberOfFood += await regrowFood(foodData, world, config, simulator.state.maxFoodIndex);
+        simulator.state.numberOfFood += regrowFood(foodData, world, config, simulator.state.maxFoodIndex);
       }
       timeEnd('Regrowing food');
 
