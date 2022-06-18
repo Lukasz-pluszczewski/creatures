@@ -22,9 +22,9 @@ export const growFood = async (foodData: FoodData, world: WorldData, config: Con
   return foodIndex - 1;
 };
 
-export const regrowFood = async (foodData: FoodData, world: WorldData, config: Config, maxFoodIndex: number) => {
+export const regrowFood = (foodData: FoodData, world: WorldData, config: Config, maxFoodIndex: number) => {
   let newFoodNumber = 0;
-  await iterateOverRangeAsync(1, maxFoodIndex, async index => {
+  iterateOverRange(1, maxFoodIndex, index => {
     if (!foodData.energy[index]) {
       const worldIndex = foodData.y[index] * config.worldSizeX + foodData.x[index];
       world.food[worldIndex] = index;

@@ -1,3 +1,5 @@
+import { TypedArray } from './types';
+
 export const createArray = (length: number) => Array(length).fill(0);
 
 export const push = <T>(arr: T[] = [], el: T) => {
@@ -79,13 +81,19 @@ export const forEachAsync = async <T>(list: T[], cb: (item: T, index: number) =>
   }
 };
 
+export const forEach = <T>(list: T[], cb: (item: T, index: number) => void) => {
+  for (let i = 0; i < list.length; i++) {
+    cb(list[i], i);
+  }
+};
+
 export const mapAsync = async <T, R>(list: T[], cb: (item: T, index: number) => Promise<R>) => {
   const result = [];
   for (let i = 0; i < list.length; i++) {
     result.push(await cb(list[i], i));
   }
   return result;
-}
+};
 
 export const sample = <T>(list: T[]) => list[Math.floor(Math.random() * list.length)];
 
@@ -110,4 +118,25 @@ export const batch = <T>(array: T[], batchLength: number): T[][] => {
     batches.push(batch);
   }
   return batches;
+};
+
+
+export const untilTruthy = (list: any[] | TypedArray, cb: (index: number) => void, startingIndex = 0) => {
+  let creatureIndex = startingIndex;
+  while (list[creatureIndex]) {
+    cb(creatureIndex);
+    creatureIndex++;
+  }
+
+  return creatureIndex - 1;
+};
+
+export const untilTruthyAsync = async (list: any[] | TypedArray, cb: (index: number) => Promise<void>, startingIndex = 0) => {
+  let creatureIndex = startingIndex;
+  while (list[creatureIndex]) {
+    await cb(creatureIndex);
+    creatureIndex++;
+  }
+
+  return creatureIndex - 1;
 };

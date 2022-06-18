@@ -43,7 +43,6 @@ export const getCreaturesDataView = (
       alive: !!creaturesData.alive[index],
       validNeurons: createArray(neurons.numberOfNeurons).map((__, neuronIndex) => creaturesData.validNeurons[index * neurons.numberOfNeurons + neuronIndex]),
       energy: creaturesData.energy[index],
-      additionalData: creaturesData.additionalData[index],
       y: creaturesData.y[index],
       x: creaturesData.x[index],
     });

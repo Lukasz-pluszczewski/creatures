@@ -4,7 +4,7 @@ import { getIndexFromCoordinates, sample, times } from './arrayUtils';
 import { clamp, nonUniformRandomInteger, randomInteger, randomSign } from './numberUtils';
 import { cleanGenome, getRawConnectionMap, traverseOutputNeurons } from './graphUtils';
 
-import { CreaturesData, Genomes, NeuronsData, WorldData } from './types';
+import { CreaturesData, Genomes, NeuronsData, TypedArray, WorldData } from './types';
 import { MAX_16_BIT_SIGNED_INTEGER } from './constants';
 import { doWithProbability } from './probabilityUtils';
 

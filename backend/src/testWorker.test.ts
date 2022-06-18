@@ -15,6 +15,14 @@ describe('testWorker', () => {
       const results = await workerInstance.add(10, 23);
       expect(results).toBe(33);
     });
+    it('runs worker function with object containing sharedArrays', async () => {
+      const args = getSharedTypedArray([17, 23], Uint8Array);
+      const results = getSharedTypedArray([0], Uint8Array);
+
+      await workerInstance.complexObject({ args: args.buffer, results: results.buffer });
+
+      expect(results[0]).toBe(40);
+    })
     it('runs worker function passing shared arrays', async () => {
       const args = getSharedTypedArray([17, 23], Uint8Array);
       const results = getSharedTypedArray([0], Uint8Array);
@@ -24,15 +32,40 @@ describe('testWorker', () => {
       expect(args[0]).toBe(34);
       expect(args[1]).toBe(46);
     });
+    it('stores state in worker', async () => {
+      await workerInstance.setFoo(10);
+      const results = await workerInstance.getFoo();
+      expect(results).toBe(10);
+    });
   });
   describe('worker pool', () => {
     let workerPool;
+    const workers = [];
     beforeAll(async () => {
-      workerPool = Pool(() => spawn(new Worker("./testWorker")), 8);
+      workerPool = Pool(
+        () => spawn(new Worker("./testWorker")),
+        8
+      );
     });
     afterAll(async () => {
       await workerPool.completed();
       await workerPool.terminate();
+    });
+
+    it('stores state in all workers', async () => {
+      const result = await workerPool.queue(worker => worker.getFoo());
+      expect(result).not.toBe(20);
+
+      await Promise.all(workerPool.workers.map(({ init }) => init.then(worker => worker.setFoo(20))));
+      const results = await Promise.all([
+        workerPool.queue(worker => worker.getFoo()),
+        workerPool.queue(worker => worker.getFoo()),
+        workerPool.queue(worker => worker.getFoo()),
+        workerPool.queue(worker => worker.getFoo()),
+        workerPool.queue(worker => worker.getFoo()),
+        workerPool.queue(worker => worker.getFoo()),
+      ]);
+      expect(results).toEqual([20, 20, 20, 20, 20, 20]);
     });
 
     it('runs scheduled tasks in worker', async () => {
@@ -57,4 +90,5 @@ describe('testWorker', () => {
       expect(args[1]).toBe(92);
     });
   });
+
 });

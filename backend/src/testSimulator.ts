@@ -30,7 +30,7 @@ export const testConfig: Config = {
   maxNumberOfOffspring: 20,
 
   repopulateWhenPopulationDiesOut: true,
-  populationLimit: 500,
+  populationLimit: 0,
 
   // energy is in range [0, 65535]
   initialEnergy: Math.floor(0.01 * MAX_16_BIT_INTEGER),
@@ -62,6 +62,7 @@ export const testConfig: Config = {
 
 const neuronsData = generateNeurons(testConfig);
 
+testConfig.populationLimit = testConfig.population;
 testConfig.maxInputNeuronId = MIN_INPUT_NEURON_ID + neuronsData.inputNeuronsIds.length - 1;
 testConfig.maxInternalNeuronId = MIN_INTERNAL_NEURON_ID + neuronsData.internalNeuronsIds.length - 1;
 testConfig.maxOutputNeuronId = MIN_OUTPUT_NEURON_ID + neuronsData.outputNeuronsIds.length - 1;

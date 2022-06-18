@@ -15,82 +15,85 @@ import { createArray } from './arrayUtils';
 import { findClosestFood } from './worldUtils';
 
 import type { Config } from './config';
-import type { Neuron, NeuronsData, Simulator } from './types';
+import type { CreaturesData, Neuron, NeuronsData, Simulator } from './types';
 import { randomSign } from './numberUtils';
+import { getCachedValue } from './cacheUtils';
 
 export const generateNeurons = (config: Config): NeuronsData => {
   const inputNeurons: Neuron[] = [
     {
       label: `bias`,
-      getValue: async () => 1,
+      getValue: () => 1,
     },
     {
       label: 'northWallDistance',
-      getValue: async (creatureIndex: number, config: Config, simulator: Simulator) =>
-        (config.worldSizeY - simulator.state.creaturesData.y[creatureIndex]) / config.worldSizeY,
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) =>
+        (config.worldSizeY - state.creaturesData.y[creatureIndex]) / config.worldSizeY,
     },
     {
       label: 'eastWallDistance',
-      getValue: async (creatureIndex: number, config: Config, simulator: Simulator) =>
-        (config.worldSizeX - simulator.state.creaturesData.x[creatureIndex]) / config.worldSizeX,
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) =>
+        (config.worldSizeX - state.creaturesData.x[creatureIndex]) / config.worldSizeX,
     },
     {
       label: 'southWallDistance',
-      getValue: async (creatureIndex: number, config: Config, simulator: Simulator) =>
-        simulator.state.creaturesData.y[creatureIndex] / config.worldSizeY,
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) =>
+        state.creaturesData.y[creatureIndex] / config.worldSizeY,
     },
     {
       label: 'westWallDistance',
-      getValue: async (creatureIndex: number, config: Config, simulator: Simulator) =>
-        simulator.state.creaturesData.x[creatureIndex] / config.worldSizeX,
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) =>
+        state.creaturesData.x[creatureIndex] / config.worldSizeX,
     },
     {
       label: 'closestFoodHorizontalDistance',
-      getValue: async (creatureIndex: number, config: Config, simulator: Simulator) => {
-        const x = simulator.state.creaturesData.x[creatureIndex];
-        const y = simulator.state.creaturesData.y[creatureIndex];
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) => {
+        const x = state.creaturesData.x[creatureIndex];
+        const y = state.creaturesData.y[creatureIndex];
 
-        const closestFoodIndex = await simulator.getStepCached(
-          `closestFoodIndex[${x},${y}]`,
-          async () => findClosestFood(x, y, simulator.state.world, simulator.state.foodData, config),
+        const closestFoodIndex = getCachedValue(
+          state.stepCache.closestFood,
+          x * config.worldSizeY + y,
+          async () => findClosestFood(x, y, state.world, state.foodData, config),
         );
 
         if (!closestFoodIndex) {
           return randomSign() * 1;
         }
-        return (simulator.state.foodData.x[closestFoodIndex] - x) / config.worldSizeX;
+        return (state.foodData.x[closestFoodIndex] - x) / config.worldSizeX;
       },
     },
     {
       label: 'closestFoodVerticalDistance',
-      getValue: async (creatureIndex: number, config: Config, simulator: Simulator) => {
-        const x = simulator.state.creaturesData.x[creatureIndex];
-        const y = simulator.state.creaturesData.y[creatureIndex];
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) => {
+        const x = state.creaturesData.x[creatureIndex];
+        const y = state.creaturesData.y[creatureIndex];
 
-        const closestFoodIndex = await simulator.getStepCached(
-          `closestFoodIndex[${x},${y}]`,
-          async () => findClosestFood(x, y, simulator.state.world, simulator.state.foodData, config),
+        const closestFoodIndex = getCachedValue(
+          state.stepCache.closestFood,
+          x * config.worldSizeY + y,
+          async () => findClosestFood(x, y, state.world, state.foodData, config),
         );
 
         if (!closestFoodIndex) {
           return randomSign() * 1;
         }
-        return (simulator.state.foodData.y[closestFoodIndex] - y) / config.worldSizeX;
+        return (state.foodData.y[closestFoodIndex] - y) / config.worldSizeX;
       },
     },
     {
       label: 'energy',
-      getValue: async (creatureIndex: number, config: Config, simulator: Simulator) =>
-        simulator.state.creaturesData.energy[creatureIndex],
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) =>
+        state.creaturesData.energy[creatureIndex],
     },
     {
       label: 'age',
-      getValue: async (creatureIndex: number, config: Config, simulator: Simulator) =>
-        simulator.state.step / config.generationLength,
+      getValue: (creatureIndex: number, config: Config, state: Simulator['state']) =>
+        state.step / config.generationLength,
     },
     {
       label: `random`,
-      getValue: async () => (Math.random() * 2 - 1),
+      getValue: () => (Math.random() * 2 - 1),
     },
   ].map((neuron, index) => {
     const id = MIN_INPUT_NEURON_ID + index;
